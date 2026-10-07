@@ -1,13 +1,27 @@
 #!/bin/bash
 # A stand-in for a company's internal AI CLI, used to test Daycare's provider support offline.
 #   fake-internal-ai chat  [--no-tools] [--json]   prompt on stdin
-#   fake-internal-ai agent [--yes]                  prompt on stdin, works in the current dir
+#   fake-internal-ai agent [--yes] [--session ID | --resume ID]   prompt on stdin, works in the current dir
+# Conversations live in $FAKE_AI_STATE (default $TMPDIR). FAKE_AI_SLEEP=n makes agent runs slow.
 mode="$1"; shift
-tools=yes; json=no; yes=no
-for a in "$@"; do
-  case "$a" in --no-tools) tools=no ;; --json) json=yes ;; --yes) yes=yes ;; esac
+tools=yes; json=no; yes=no; session=""; resume=""
+while [ $# -gt 0 ]; do
+  case "$1" in --no-tools) tools=no ;; --json) json=yes ;; --yes) yes=yes ;;
+    --session) session="$2"; shift ;; --resume) resume="$2"; shift ;; esac
+  shift
 done
 prompt=$(cat)
+state="${FAKE_AI_STATE:-${TMPDIR:-/tmp}}"
+[ "$mode" = agent ] && [ -n "${FAKE_AI_SLEEP:-}" ] && sleep "$FAKE_AI_SLEEP"
+if [ -n "$resume" ]; then
+  log="$state/fake-ai-$resume.log"
+  [ -f "$log" ] || { echo "no conversation $resume" >&2; exit 4; }
+  earlier=$(grep -c '^PROMPT ' "$log")
+  printf 'PROMPT %s\n' "$(printf '%s' "$prompt" | tr '\n' ' ')" >> "$log"
+  printf 'CONTINUED after %s earlier: %s\n' "$earlier" "$(printf '%s' "$prompt" | tr '\n' ' ')"
+  exit 0
+fi
+[ -n "$session" ] && printf 'PROMPT %s\n' "$(printf '%s' "$prompt" | tr '\n' ' ')" >> "$state/fake-ai-$session.log"
 reply=""
 want=$(printf '%s' "$prompt" | sed -n 's/.*nothing else: \([A-Z0-9-]*\).*/\1/p')
 file=$(printf '%s' "$prompt" | sed -n 's/.*create a file named \([A-Za-z0-9._-]*\).*/\1/ip' | sed 's/\.$//')

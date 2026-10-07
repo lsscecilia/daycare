@@ -33,6 +33,7 @@ const HELP = `daycare: see what your AI helpers are doing and what's waiting on 
   daycare retry <task>            run a stuck step again
   daycare resolve <task>          mark a stuck step as done anyway
   daycare kill <task>             stop a helper
+  daycare tell <task> "<text>"    send a helper a follow-up (same conversation, same worktree)
 
   daycare snap [-m note]          screenshot a message; Daycare checks it and drafts a reply
   daycare drop [image] [-m note]  same, from a file or the clipboard
@@ -86,10 +87,10 @@ function board() {
   }));
   sec("HELPERS", v.helpers.map((h) => {
     const dot = h.state === "working" ? `${C.grn}●${C.r}` : h.state === "waiting" ? `${C.yel}●${C.r}` : h.state === "stuck" ? `${C.red}●${C.r}` : `${C.dim}●${C.r}`;
-    const what = h.state === "waiting" ? "your turn" : h.state === "idle" ? "idle" : h.doing ?? "working";
+    const what = h.state === "waiting" ? (h.doing ? `your turn: ${h.doing}` : "your turn") : h.state === "idle" ? "idle" : h.doing ?? "working";
     const money = h.budget ? ` $${(h.spent ?? 0).toFixed(2)}/${h.budget.toFixed(2)}` : "";
     const lock = h.files.length ? ` 🔒${h.files.join(",")}` : "";
-    return `  ${dot} ${pad(h.name, 10)} ${pad(h.task, 30)} ${pad(what, 22)} ${hint(ago(h.since) + money + lock)}`;
+    return `  ${dot} ${pad(h.name, 10)} ${pad(h.task, 30)} ${pad(what, h.state === "waiting" ? 60 : 22)} ${hint(ago(h.since) + money + lock)}`;
   }));
   for (const c of v.conflicts) {
     const a = v.helpers.find((h) => h.id === c.a), b = v.helpers.find((h) => h.id === c.b);
@@ -149,6 +150,11 @@ async function main() {
     }
     case "ok": case "approve": case "review": case "retry": case "resolve": case "dispatch":
       return console.log(act({ action: cmd, item: resolveItem(args[0], { includeDone: cmd === "review" }).slug }));
+    case "tell": {
+      const item = args.shift();
+      if (!item || !args.length) throw new Error('daycare tell <task> "what to do next"');
+      return console.log(act({ action: "tell", item, text: args.join(" ") }));
+    }
     case "kill": {
       const it = resolveItem(args[0]);
       const w = one<{ id: number }>("SELECT id FROM worker WHERE item_id = ? AND status != 'ended' ORDER BY id DESC LIMIT 1", it.id);

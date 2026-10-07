@@ -105,3 +105,45 @@ describe("finding the task from the current directory", () => {
     } finally { process.chdir(cwd); }
   });
 });
+
+describe("process liveness", () => {
+  test("a pid's start time reads the same whatever the caller's locale", async () => {
+    const util = await import("../src/util");
+    const mine = util.pidStart(process.pid)!;
+    const lang = process.env.LANG;
+    try {
+      process.env.LANG = "en_SG.UTF-8";
+      expect(util.pidStart(process.pid)).toBe(mine);
+      expect(util.alive(process.pid, mine)).toBe(true);
+    } finally { process.env.LANG = lang; }
+  });
+});
+
+describe("what a stopped session needs from you", () => {
+  test("its last question, without markdown", async () => {
+    const { brief } = await import("../src/hook");
+    expect(brief("Fixed. All **13 tests** pass.\n\n| a | b |\n|---|---|\n\nWant me to push `main`?")).toBe("Want me to push main?");
+  });
+  test("otherwise its opening line; file names don't split sentences", async () => {
+    const { brief } = await import("../src/hook");
+    expect(brief("Installed with ./install.sh and restarted the daemon. Refresh the tab.")).toBe("Installed with ./install.sh and restarted the daemon.");
+    expect(brief("```\ncode\n```")).toBeNull();
+  });
+});
+
+describe("the room's command box", () => {
+  test("plain text is a job for a helper, kept exactly as typed", async () => {
+    const { toArgv } = await import("../src/command");
+    expect(toArgv(`  fix the "flaky" cart test  `)).toEqual(["run", `fix the "flaky" cart test`]);
+  });
+  test("daycare commands are split like a shell would, quotes only", async () => {
+    const { toArgv } = await import("../src/command");
+    expect(toArgv(`daycare new "checkout bug" -t feature`)).toEqual(["new", "checkout bug", "-t", "feature"]);
+    expect(toArgv(`daycare run 'echo $(whoami)'`)).toEqual(["run", "echo $(whoami)"]);
+  });
+  test("commands that change your machine stay in the terminal", async () => {
+    const { toArgv } = await import("../src/command");
+    for (const c of ["daycare setup", "daycare uninstall", "daycare hook Stop", "daycare __run 1", "daycare daemon"]) expect(() => toArgv(c)).toThrow(/terminal/);
+    expect(() => toArgv(`daycare run "oops`)).toThrow(/quote/);
+  });
+});

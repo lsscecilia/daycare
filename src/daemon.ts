@@ -3,6 +3,7 @@ import { chmodSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { act, type Action } from "./actions";
 import { roomHtml } from "./assets";
+import { runCommand } from "./command";
 import { config } from "./config";
 import { P } from "./paths";
 import { reconcile } from "./reconcile";
@@ -70,6 +71,14 @@ export function serve() {
       if (req.method === "POST" && url.pathname === "/api/action") {
         try { return json({ ok: true, message: act((await req.json()) as Action) }); }
         catch (e) { return json({ ok: false, error: (e as Error).message }, 400); }
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/cmd") {
+        try {
+          const body = (await req.json()) as { text: string; repo?: string };
+          const r = await runCommand(String(body.text ?? ""), body.repo ? String(body.repo) : undefined);
+          return json(r.ok ? { ok: true, message: r.message } : { ok: false, error: r.message }, r.ok ? 200 : 400);
+        } catch (e) { return json({ ok: false, error: (e as Error).message }, 400); }
       }
 
       if (req.method === "POST" && url.pathname === "/api/drop") {

@@ -28,6 +28,15 @@ button { font: inherit; cursor: pointer; }
 .top h1 { font-family: var(--f-display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1; }
 .top .sub { color: var(--ink-soft); font-size: 14px; }
 .top .grow { flex: 1; }
+.cmdbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.cmdbar input, .cmdbar select { font: inherit; font-size: 15px; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; min-width: 0; }
+.cmdbar input { flex: 1 1 260px; }
+.cmdbar select { flex: 0 1 200px; }
+.cmdbar .to { font: inherit; font-size: 14px; font-weight: 800; background: var(--you); color: var(--ink); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdbar .to::after { content: "  ×"; color: var(--ink-soft); }
+.card.tellable { cursor: pointer; }
+.card.sel { outline: 3px solid var(--you); outline-offset: 2px; }
+.cmdbar input:focus-visible, .cmdbar select:focus-visible { outline: 3px solid var(--you); outline-offset: 1px; }
 .conn { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
 .conn.off { background: var(--bad); }
 .btn { border: 2px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 12px; padding: 7px 14px; font-weight: 800; box-shadow: 0 3px 0 var(--ink); transition: transform .08s, box-shadow .08s; display: inline-flex; align-items: center; gap: 8px; }
@@ -137,6 +146,13 @@ details[open] summary { margin-bottom: 6px; }
     <button class="btn" id="b-focus" type="button" aria-pressed="false">Focus</button>
   </header>
 
+  <form class="cmdbar" id="cmdbar" autocomplete="off">
+    <button class="to" id="to" type="button" hidden title="Back to starting new helpers (Esc)"></button>
+    <input id="cmd" type="text" placeholder="Give a helper a job…   or  daycare approve <task>" aria-label="A job for a helper, or a daycare command" enterkeyhint="go">
+    <select id="repo" aria-label="Repo the helper works in" title="Repo the helper works in"></select>
+    <button class="btn go" type="submit">Go</button>
+  </form>
+
   <div class="scene" id="scene">
     <div class="window" id="window"><div class="sun"></div></div>
     <svg class="clock" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#2c2a3a" stroke-width="3"/><line id="hh" x1="20" y1="20" x2="20" y2="11" stroke="#2c2a3a" stroke-width="3" stroke-linecap="round"/><line id="mh" x1="20" y1="20" x2="20" y2="6" stroke="#2c2a3a" stroke-width="2" stroke-linecap="round"/></svg>
@@ -145,7 +161,7 @@ details[open] summary { margin-bottom: 6px; }
     <div class="desks" id="desks"></div>
   </div>
 
-  <div class="inspect hint" id="inspect">Tap a helper</div>
+  <div class="inspect hint" id="inspect">Tap a helper or task to talk to it</div>
 
   <section>
     <div class="desk-h"><h2>On your desk</h2><p id="desk-sub"></p></div>
@@ -228,7 +244,7 @@ const CAT = (mode) => `<svg viewBox="0 0 80 60" aria-hidden="true">
 </svg>`;
 const MAILBOX = `<svg viewBox="0 0 70 110" aria-hidden="true"><rect x="31" y="50" width="8" height="58" fill="#8a5c38"/><rect x="8" y="20" width="54" height="34" rx="16" fill="#6d5ae6" stroke="#2c2a3a" stroke-width="2.5"/><rect x="14" y="34" width="22" height="6" rx="3" fill="#2c2a3a" opacity=".5"/><g><rect x="58" y="6" width="4" height="30" fill="#2c2a3a"/><rect x="58" y="6" width="16" height="10" fill="#f05a5a"/></g></svg>`;
 
-let V = null, sel = null;
+let V = null, sel = null, selCard = null; // a helper in the room, or a task card on your desk
 const openDetails = new Set();
 const drafts = {};
 
@@ -261,10 +277,31 @@ function sky() {
   $("#mh").setAttribute("transform", `rotate(${d.getMinutes() * 6} 20 20)`);
 }
 
+// Update a container in place: keep every element whose markup didn't change, so its
+// animations keep running instead of restarting (which looked like flashing) on each update.
+// Speech bubbles are filled separately, so a helper's changing status doesn't rebuild it.
+const shells = new WeakMap();
+function patch(box, items) {
+  const old = new Map([...box.children].map((e) => [e.dataset.k, e]));
+  items.forEach((it, i) => {
+    let el = old.get(it.key);
+    if (!el || shells.get(el) !== it.html) {
+      const t = document.createElement("template"); t.innerHTML = it.html.trim();
+      const n = t.content.firstElementChild; n.dataset.k = it.key; shells.set(n, it.html);
+      if (el) el.replaceWith(n);
+      el = n;
+    }
+    old.delete(it.key);
+    if (it.bubble !== undefined) { const b = el.querySelector(".bubble"); if (b && b.innerHTML !== it.bubble) b.innerHTML = it.bubble; }
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+  });
+  for (const e of old.values()) e.remove();
+}
+
 const VISUAL = { working: "working", waiting: "done", stuck: "stuck", idle: "idle" };
 function helperBubble(h, conflict) {
   if (conflict) return `both editing ${esc(conflict)}`;
-  if (h.state === "waiting") return `Your turn<small>${esc(h.task)}</small>`;
+  if (h.state === "waiting") return `Your turn<small>${esc(h.doing || h.task)}</small>`;
   if (h.state === "stuck") return `Help!<small>${esc(h.task)}</small>`;
   if (h.state === "idle") return "zzz";
   return `${esc(h.task)}<small>${esc(h.doing || "working")}</small>`;
@@ -282,20 +319,20 @@ function renderRoom() {
   const mail = v.cards.filter((c) => c.kind === "msg").length;
 
   const cells = [];
-  cells.push(`<div class="mailcell"><div class="mailbox" title="Paste a screenshot (⌘V) to send me a message">${MAILBOX}${mail ? `<span class="count">${mail}</span>` : ""}</div>
-    <div class="cat${v.reading ? " busy" : ""}">${v.reading ? `<div class="bubble">…</div>` : ""}${CAT(v.reading ? "read" : "sleep")}${v.reading ? "" : `<span class="zzz">z</span>`}</div></div>`);
-  cells.push(`<div class="station st-${focus ? "idle" : youState}"><div class="bubble">${youBubble}</div><div class="plumbob"></div>
-    ${personSVG("you", youState === "stuck" ? "stuck" : "working", PAPERS(onDesk) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div></div>`);
+  cells.push({ key: "mail", html: `<div class="mailcell"><div class="mailbox" title="Paste a screenshot (⌘V) to send me a message">${MAILBOX}${mail ? `<span class="count">${mail}</span>` : ""}</div>
+    <div class="cat${v.reading ? " busy" : ""}">${v.reading ? `<div class="bubble">…</div>` : ""}${CAT(v.reading ? "read" : "sleep")}${v.reading ? "" : `<span class="zzz">z</span>`}</div></div>` });
+  cells.push({ key: "you", bubble: youBubble, html: `<div class="station st-${focus ? "idle" : youState}"><div class="bubble"></div><div class="plumbob"></div>
+    ${personSVG("you", youState === "stuck" ? "stuck" : "working", PAPERS(onDesk) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div></div>` });
   for (const h of v.helpers) {
     const vis = VISUAL[h.state];
-    cells.push(`<div class="station st-${vis}${sel === h.id ? " sel" : ""}" data-id="${h.id}" role="button" tabindex="0" aria-label="${esc(h.name)}: ${esc(h.state)}">
-      <div class="bubble${conflictFile[h.id] ? " conflict" : ""}">${helperBubble(h, conflictFile[h.id])}</div><div class="plumbob"></div>
+    cells.push({ key: `h${h.id}`, bubble: helperBubble(h, conflictFile[h.id]), html: `<div class="station st-${vis}${sel === h.id ? " sel" : ""}" data-id="${h.id}" role="button" tabindex="0" aria-label="${esc(h.name)}: ${esc(h.state)}">
+      <div class="bubble${conflictFile[h.id] ? " conflict" : ""}"></div><div class="plumbob"></div>
       ${personSVG(h.look in LOOKS ? h.look : "claude", vis, vis === "working" ? MUG : "")}
       <div class="nameplate">${esc(h.name)}</div>
-      ${vis === "idle" ? `<span class="zzz">z</span>` : ""}${vis === "stuck" ? `<span class="swirl"></span>` : ""}</div>`);
+      ${vis === "idle" ? `<span class="zzz">z</span>` : ""}${vis === "stuck" ? `<span class="swirl"></span>` : ""}</div>` });
   }
-  if (!v.helpers.length) cells.push(`<div class="empty-room">No helpers yet.<br><code>daycare run "…"</code></div>`);
-  $("#desks").innerHTML = cells.join("");
+  if (!v.helpers.length) cells.push({ key: "empty", html: `<div class="empty-room">No helpers yet.<br><code>daycare run "…"</code></div>` });
+  patch($("#desks"), cells);
   $("#dnd").hidden = !focus;
 }
 
@@ -324,13 +361,13 @@ function cardHTML(c) {
     <div class="row"><button class="btn small go" data-a="retry">Retry</button><button class="btn small ghost" data-a="resolve">It's done</button></div>`;
   if (c.kind === "done") inner = `${c.changes ? `<p>${esc(c.changes)}</p>` : ""}${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
     <div class="row"><button class="btn small go" data-a="review">✓</button></div>`;
-  return `<article class="card${p0 ? " urgent" : ""}" data-key="${esc(c.key)}"><span class="kind ${kc}">${kl}</span><h3>${esc(c.title)}</h3>${inner}</article>`;
+  return `<article class="card${p0 ? " urgent" : ""}${c.tell ? " tellable" : ""}${selCard === c.key ? " sel" : ""}" data-key="${esc(c.key)}"><span class="kind ${kc}">${kl}</span><h3>${esc(c.title)}</h3>${inner}</article>`;
 }
 
 function renderCards() {
   // Don't redraw while you're typing in a draft.
   if (document.activeElement && document.activeElement.matches("textarea")) return;
-  $("#cards").innerHTML = V.cards.length ? V.cards.map(cardHTML).join("") : `<div class="empty">All clear ✨</div>`;
+  patch($("#cards"), V.cards.length ? V.cards.map((c) => ({ key: c.key, html: cardHTML(c) })) : [{ key: "empty", html: `<div class="empty">All clear ✨</div>` }]);
   $("#desk-sub").textContent = `${V.stats.doneToday} done today`;
 }
 
@@ -343,14 +380,78 @@ function renderHeader() {
 
 function renderInspect() {
   const el = $("#inspect"), h = V.helpers.find((x) => x.id === sel);
-  if (!h) { el.className = "inspect hint"; el.textContent = "Tap a helper"; return; }
+  if (!h) { el.className = "inspect hint"; el.textContent = "Tap a helper or task to talk to it"; return; }
   el.className = "inspect";
   el.innerHTML = `<span class="who">${esc(h.name)}</span><span class="meta">${esc(h.task)}${h.doing ? ` · ${esc(h.doing)}` : ""} · ${ago(h.since)}${h.files.length ? ` · 🔒 ${h.files.map(esc).join(", ")}` : ""}</span>
     ${h.budget ? `<div class="meter">⚡ $${(h.budget - (h.spent || 0)).toFixed(2)}<div class="bar"><i style="width:${Math.max(0, 100 - (h.spent || 0) / h.budget * 100)}%"></i></div></div>` : ""}
-    <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small ghost" data-a="hide">Hide</button>`}${h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>`;
+    ${h.queued ? `<span class="meta">📨 Gets your message when this run ends</span>` : ""}
+    <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small go" data-a="goto">Go to it</button><button class="btn small ghost" data-a="hide">Hide</button>`}${h.kind === "dispatch" && h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>`;
 }
 
-function render() { if (!V) return; renderHeader(); renderRoom(); renderCards(); renderInspect(); }
+// The repo picker: repos you've worked in lately. Keeps your pick across updates and visits.
+let repoPick = (() => { try { return localStorage.getItem("daycare-repo") || ""; } catch { return ""; } })();
+let repoList = "";
+function renderRepos() {
+  const repos = V.repos || [];
+  if (repos.join("\n") === repoList) return;
+  repoList = repos.join("\n");
+  const el = $("#repo");
+  if (!repos.length) { el.innerHTML = `<option value="">No repos yet</option>`; el.disabled = true; return; }
+  el.disabled = false;
+  if (!repos.includes(repoPick)) repoPick = repos[0];
+  el.innerHTML = repos.map((r) => `<option value="${esc(r)}" title="${esc(r)}"${r === repoPick ? " selected" : ""}>${esc(r.split("/").pop())}</option>`).join("");
+}
+$("#repo").addEventListener("change", (e) => { repoPick = e.target.value; try { localStorage.setItem("daycare-repo", repoPick); } catch {} });
+
+const sent = []; let hi = 0;
+$("#cmdbar").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("#cmd"), text = input.value.trim();
+  if (!text) return;
+  input.disabled = true;
+  try {
+    const t = target();
+    const j = t ? await act({ action: "tell", item: t, text }) : await api("/api/cmd", { text, repo: $("#repo").value || undefined });
+    if (j.ok) { sent.push(text); hi = sent.length; input.value = ""; }
+  } finally { input.disabled = false; input.focus(); }
+});
+$("#cmd").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+  if (!sent.length) return;
+  e.preventDefault();
+  hi = Math.max(0, Math.min(sent.length, hi + (e.key === "ArrowUp" ? -1 : 1)));
+  e.target.value = sent[hi] ?? "";
+});
+
+// Who the box talks to: the helper or task card you picked, if it can take a follow-up.
+function target() {
+  if (sel) { const h = V.helpers.find((x) => x.id === sel); if (h && h.tell) return h.item; }
+  if (selCard) { const c = V.cards.find((x) => x.key === selCard); if (c && c.tell) return c.item; }
+  return sel || selCard ? null : selItem;
+}
+function renderBox() {
+  const t = target(), to = $("#to"), input = $("#cmd");
+  if (t) selItem = t;
+  to.hidden = !t; $("#repo").hidden = !!t;
+  if (t) { to.textContent = `→ ${t}`; input.placeholder = `Message ${t}…`; }
+  else input.placeholder = "Give a helper a job…   or  daycare approve <task>";
+}
+function unselect() { sel = null; selCard = null; selItem = null; render(); }
+$("#to").addEventListener("click", () => { unselect(); $("#cmd").focus(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (sel || selCard)) unselect(); });
+
+// A task moves between the desk (a card) and the room (its helper at work). Keep talking to it.
+let selItem = null;
+// Between two back-to-back runs a task is briefly neither, so hold on until you unselect.
+function follow() {
+  if (sel && !V.helpers.some((h) => h.id === sel)) sel = null;
+  if (selCard && !V.cards.some((c) => c.key === selCard)) selCard = null;
+  if (sel || selCard || !selItem) return;
+  const h = V.helpers.find((x) => x.item === selItem), c = V.cards.find((x) => x.item === selItem && x.tell);
+  if (h) sel = h.id; else if (c) selCard = c.key;
+}
+
+function render() { if (!V) return; follow(); renderRepos(); renderBox(); renderHeader(); renderRoom(); renderCards(); renderInspect(); }
 
 /* Live updates */
 function connect() {
@@ -364,8 +465,15 @@ document.addEventListener("click", async (e) => {
   const cp = e.target.closest("[data-copy]");
   if (cp) { copy(cp.dataset.copy).then(() => toast("Copied"), () => toast("Couldn't copy. Select the text instead.", true)); return; }
   const st = e.target.closest(".station[data-id]");
-  if (st) { sel = sel === Number(st.dataset.id) ? null : Number(st.dataset.id); render(); return; }
+  if (st) { sel = sel === Number(st.dataset.id) ? null : Number(st.dataset.id); selCard = null; selItem = null; render(); if (target()) $("#cmd").focus(); return; }
   const b = e.target.closest("[data-a]");
+  // A task card (not its buttons, links or fields): talk to its helper.
+  const pick = !b && e.target.closest(".card.tellable");
+  if (pick && !e.target.closest("details, textarea, input, a, button")) {
+    selCard = selCard === pick.dataset.key ? null : pick.dataset.key; sel = null; selItem = null; render(); if (target()) $("#cmd").focus(); return;
+  }
+  // Clicking empty floor goes back to starting new helpers.
+  if (!b && e.target.closest("#scene") && (sel || selCard)) { unselect(); return; }
   if (!b || b.dataset.a === "check") return;
   if (b.closest("#inspect")) { if (sel) await act({ action: b.dataset.a, worker: sel }); return; }
   const card = b.closest(".card"); const c = card && V.cards.find((x) => x.key === card.dataset.key);

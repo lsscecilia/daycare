@@ -1,8 +1,9 @@
+import { existsSync } from "fs";
 // One snapshot of everything, shaped for the board (`daycare`) and the room UI.
 import { basename } from "path";
 import { config } from "./config";
 import { all, kvGet, one } from "./db";
-import { activeStep, checks, type Item, type Step, type Worker } from "./items";
+import { activeStep, cantTell, checks, getItem, type Item, type Step, type Worker } from "./items";
 import { loadProvider } from "./provider";
 import { reconcile } from "./reconcile";
 import type { Finding, Message } from "./triage";
@@ -11,15 +12,18 @@ import { focusUntil } from "./util";
 export type Helper = {
   id: number; kind: "dispatch" | "session"; name: string; look: string; state: "working" | "waiting" | "stuck" | "idle";
   task: string; doing: string | null; since: number; spent: number | null; budget: number | null; files: string[]; resume: string | null; item: string | null;
+  tell: boolean; queued: string | null; // whether the box can message it; a message waiting for this run to end
 };
 export type Card = {
   key: string; kind: "stuck" | "msg" | "review" | "test" | "step" | "done"; title: string; sub: string | null; at: number;
   item?: string; msg?: number; checks?: { t: string; d: boolean }[]; result?: string | null; changes?: string | null;
   commands?: string[]; urgency?: string; quote?: string | null; findings?: Finding[]; draft?: string | null; failed?: boolean;
+  tell?: boolean;
 };
 export type View = {
   focus: { until: number; held: number }; helpers: Helper[]; conflicts: { a: number; b: number; file: string }[];
   cards: Card[]; reading: number; stats: { working: number; helpers: number; spent: number; doneToday: number };
+  repos: string[]; // where you've worked lately, newest first: the room's command box offers these
 };
 
 const LOOKS = ["claude2", "cursor", "claude"];
@@ -56,6 +60,7 @@ export function view(doReconcile = true): View {
       spent: w.spent, budget: w.kind === "dispatch" ? w.budget : null,
       files: locks.filter((l) => l.worker_id === w.id).map((l) => basename(l.path)),
       resume: resumeFor(w), item: w.kind === "dispatch" ? w.title : null,
+      ...(() => { const it = w.kind === "dispatch" && w.item_id ? getItem(w.item_id) : null; return { tell: !!it && !cantTell(it), queued: it?.queued ?? null }; })(),
     };
   });
 
@@ -97,6 +102,8 @@ export function view(doReconcile = true): View {
     } else cards.push({ key: `i${it.id}`, kind: "step", title: it.slug, sub: s.name, at: s.started_at ?? it.updated_at, item: it.slug });
   }
 
+  for (const c of cards) if (c.item) { const it = items.find((i) => i.slug === c.item); c.tell = !!it && !cantTell(it); }
+
   const msgs = all<Message>("SELECT * FROM message WHERE status IN ('ready','failed') ORDER BY created_at");
   for (const m of msgs) {
     cards.push({
@@ -119,6 +126,15 @@ export function view(doReconcile = true): View {
     helpers, conflicts, cards,
     reading: one<{ n: number }>("SELECT COUNT(*) n FROM message WHERE status = 'reading'")?.n ?? 0,
     stats: { working: helpers.filter((h) => h.state === "working").length, helpers: helpers.length, spent, doneToday },
+    repos: recentRepos(),
   };
 }
 
+
+function recentRepos(): string[] {
+  const rows = all<{ r: string }>(`SELECT r FROM (
+      SELECT repo_root r, COALESCE(last_event_at, started_at) t FROM worker WHERE kind = 'session' AND repo_root IS NOT NULL
+      UNION ALL SELECT repo r, updated_at t FROM item)
+    GROUP BY r ORDER BY MAX(t) DESC LIMIT 20`);
+  return rows.map((x) => x.r).filter((r) => !r.includes("/.worktrees/") && existsSync(r)).slice(0, 10);
+}

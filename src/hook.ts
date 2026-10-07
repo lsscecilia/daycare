@@ -6,7 +6,7 @@ import { config } from "./config";
 import { one, run, tx } from "./db";
 import type { Worker } from "./items";
 import { P } from "./paths";
-import { ago, gitInfo, lockTtlMs, notify, now, pidStart, sh } from "./util";
+import { ago, alive, gitInfo, lockTtlMs, notify, now, pidStart, sh } from "./util";
 
 const FILE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 
@@ -23,6 +23,25 @@ function describe(tool: string, input: any): string {
     case "Task": case "Agent": return "delegating";
     default: return tool.replace(/^mcp__\w+__/, "").toLowerCase();
   }
+}
+
+// What a stopped session needs from you, from Claude's last message: its last question if it
+// asked one ("Want me to push them?"), otherwise its opening line, which is usually the outcome.
+export function brief(message: string): string | null {
+  const text = message
+    .replace(/```[\s\S]*?```/g, " ")
+    .split("\n")
+    .filter((l) => !/^\s*\|/.test(l)) // tables
+    .map((l) => l.replace(/^\s*(#+|[-*>]|\d+\.)\s+/, ""))
+    .join(" ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\*\*|__/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return null;
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const pick = sentences.filter((s) => s.endsWith("?")).pop() ?? sentences[0];
+  return pick.length > 90 ? pick.slice(0, 89).trimEnd() + "…" : pick;
 }
 
 // The hook's parents are a shell and then Claude Code. Find the claude process so Daycare can
@@ -46,8 +65,16 @@ function ensureWorker(p: any): Worker {
   }
   const existing = one<Worker>("SELECT * FROM worker WHERE session_id = ?", p.session_id);
   if (existing) {
-    run("UPDATE worker SET last_event_at = ?, status = CASE WHEN status = 'ended' THEN 'idle' ELSE status END, ended_at = NULL WHERE id = ?", now(), existing.id);
-    return { ...existing, status: existing.status === "ended" ? "idle" : existing.status };
+    // A resumed session (`claude --resume`/`--continue`) keeps its session id but runs in a new
+    // process. Pick up the new pid, or reconcile would see the old one dead and end it again.
+    let { pid, pid_started } = existing;
+    if (existing.status === "ended" || !alive(pid, pid_started)) {
+      pid = findClaudePid();
+      pid_started = pid ? pidStart(pid) : null;
+    }
+    run("UPDATE worker SET last_event_at = ?, pid = ?, pid_started = ?, status = CASE WHEN status = 'ended' THEN 'idle' ELSE status END, ended_at = NULL WHERE id = ?",
+      now(), pid, pid_started, existing.id);
+    return { ...existing, pid, pid_started, status: existing.status === "ended" ? "idle" : existing.status };
   }
   const cwd = p.cwd ?? process.cwd();
   const g = gitInfo(cwd);
@@ -90,7 +117,10 @@ export async function hook(event: string) {
 
     switch (event) {
       case "UserPromptSubmit": {
-        const title = w.title || String(p.prompt ?? "").split("\n")[0].trim().slice(0, 80);
+        // A session's label is your latest message, so "Your turn" names what you last asked.
+        // Helpers Daycare started keep their task name.
+        const said = String(p.prompt ?? "").split("\n")[0].trim().slice(0, 80);
+        const title = w.kind === "dispatch" ? w.title || said : said || w.title;
         run("UPDATE worker SET status = 'running', turn_started_at = ?, doing = 'thinking', title = ?, repeat = 0, last_sig = NULL WHERE id = ?", t, title, w.id);
         break;
       }
@@ -125,11 +155,12 @@ export async function hook(event: string) {
       case "Stop":
       case "StopFailure": {
         if (w.kind === "dispatch") { run("UPDATE worker SET doing = 'wrapping up' WHERE id = ?", w.id); break; }
-        const doing = event === "StopFailure" ? `error: ${p.error ?? "unknown"}` : null;
+        // While waiting, `doing` holds what's needed from you.
+        const doing = event === "StopFailure" ? `error: ${p.error ?? "unknown"}` : brief(String(p.last_assistant_message ?? ""));
         run("UPDATE worker SET status = 'waiting', doing = ? WHERE id = ?", doing, w.id);
         // Only ping for long turns: a quick back-and-forth means you're already watching.
         const long = w.turn_started_at && t - w.turn_started_at > config().notify_session_after_seconds * 1000;
-        if (long || event === "StopFailure") notify(`${basename(w.repo_root ?? "")}: your turn`, w.title || "Claude finished", false);
+        if (long || event === "StopFailure") notify(`${basename(w.repo_root ?? "")}: your turn`, doing || w.title || "Claude finished", false);
         break;
       }
       case "SessionEnd": {

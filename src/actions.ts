@@ -1,13 +1,15 @@
 // Everything you can do to a task or message. The CLI and the room UI both call these.
 import { kvGet, kvSet, one, run, tx } from "./db";
-import { activeStep, checks, completeStep, enterStep, getWorker, resolveItem, startStep, txfx } from "./items";
+import { goTo } from "./goto";
+import { activeStep, checks, completeStep, enterStep, getWorker, resolveItem, startStep, tell, txfx } from "./items";
 import { reconcile } from "./reconcile";
 import { now } from "./util";
 
 export type Action =
   | { action: "ok" | "approve" | "review" | "retry" | "resolve" | "dispatch"; item: string }
   | { action: "check"; item: string; idx: number; done: boolean }
-  | { action: "kill" | "hide"; worker: number }
+  | { action: "kill" | "hide" | "goto"; worker: number }
+  | { action: "tell"; item: string; text: string }
   | { action: "reply" | "dismiss"; msg: number }
   | { action: "focus"; minutes: number };
 
@@ -78,6 +80,13 @@ export function act(a: Action): string {
       run("UPDATE worker SET kill_reason = COALESCE(kill_reason, 'stopped by you'), kill_evidence = COALESCE(kill_evidence, 'You stopped it.') WHERE id = ?", w.id);
       for (const pid of [w.child_pid]) if (pid) try { process.kill(pid, "SIGTERM"); } catch {}
       return `Stopping ${w.title}.`;
+    }
+    case "tell":
+      return tell(resolveItem(a.item, { includeDone: true }), a.text);
+    case "goto": {
+      const w = getWorker(a.worker);
+      if (!w || w.status === "ended") throw new Error("That session has ended.");
+      return goTo(w);
     }
     case "hide": {
       const w = getWorker(a.worker);

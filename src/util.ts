@@ -41,14 +41,17 @@ export function alive(pid?: number | null, started?: string | null): boolean {
   if (!pid) return false;
   try { process.kill(pid, 0); } catch (e: any) { if (e?.code !== "EPERM") return false; }
   if (started) {
-    const s = sh(["ps", "-o", "lstart=", "-p", String(pid)]).out;
+    const s = pidStart(pid);
     if (s && s !== started) return false; // pid was reused by another process
   }
   return true;
 }
 
+// A process's start time, used to tell a live process from a reused pid. Fixed locale and
+// timezone: hooks run with the user's LANG but the launchd daemon has none, and `ps` formats
+// lstart differently for each ("Wed  7 Oct" vs "Wed Oct  7"), so every session looked dead.
 export function pidStart(pid: number): string | null {
-  return sh(["ps", "-o", "lstart=", "-p", String(pid)]).out || null;
+  return sh(["/usr/bin/env", "LC_ALL=C", "TZ=UTC", "ps", "-o", "lstart=", "-p", String(pid)]).out || null;
 }
 
 // Re-runs this program: the compiled binary, or `bun src/cli.ts` in development.

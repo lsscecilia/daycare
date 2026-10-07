@@ -18,5 +18,11 @@ work:
   output: { format: json, result: result, error: is_error, session: session_id, cost: total_cost_usd, reason: subtype }
   timeout_seconds: 3600
   resume: [claude, --resume, "{session}"]
+  # Your follow-up messages to a helper (`daycare tell`, or the room's box): same conversation,
+  # same worktree. Output and timeout come from work above.
+  follow_up:
+    argv: [claude, -p, --resume, "{session}", --permission-mode, acceptEdits, --strict-mcp-config,
+           --max-budget-usd, "{budget}", --output-format, json]
+    prompt_via: stdin
 
 governance: claude-hooks

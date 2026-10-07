@@ -28,11 +28,14 @@ export async function runWorker(workerId: number) {
   try { provider = loadProvider(w.provider!); } catch (e) { return finishFail("no such AI tool", (e as Error).message); }
   if (!provider.work) return finishFail("can't work", `${provider.label ?? provider.name} has no "work" section, so it can only read messages.`);
 
-  let prompt = render(s.prompt ?? it.title, { title: it.title, slug: it.slug, prompt: it.title });
-  if (it.branch) prompt += `\n\n(You're in a git worktree on branch ${it.branch}. Commit your changes with a clear message when you're done.)`;
+  // A follow-up continues the conversation with just your message; a fresh run gets the task.
+  const fu = s.followup ? provider.work.follow_up : undefined;
+  const cmd = fu ? { ...fu, output: fu.output ?? provider.work.output, timeout_seconds: fu.timeout_seconds ?? provider.work.timeout_seconds } : provider.work;
+  let prompt = fu ? s.followup! : render(s.prompt ?? it.title, { title: it.title, slug: it.slug, prompt: it.title });
+  if (!fu && it.branch) prompt += `\n\n(You're in a git worktree on branch ${it.branch}. Commit your changes with a clear message when you're done.)`;
 
   let prepared;
-  try { prepared = prepare(provider.work, prompt, { session: w.session_id!, budget: String(w.budget ?? s.budget_usd ?? config().budget_usd), cwd: w.cwd! }); }
+  try { prepared = prepare(cmd, prompt, { session: w.session_id!, budget: String(w.budget ?? s.budget_usd ?? config().budget_usd), cwd: w.cwd! }); }
   catch (e) { return finishFail("bad provider config", (e as Error).message); }
 
   const out = openSync(w.out_path!, "w");
@@ -44,7 +47,7 @@ export async function runWorker(workerId: number) {
   if (prepared.stdin !== null) child.stdin!.end(prepared.stdin);
   run("UPDATE worker SET status = 'running', child_pid = ?, last_event_at = ? WHERE id = ?", child.pid ?? null, now(), w.id);
 
-  const limitMs = (s.max_minutes ? s.max_minutes * 60 : provider.work.timeout_seconds ?? 3600) * 1000;
+  const limitMs = (s.max_minutes ? s.max_minutes * 60 : cmd.timeout_seconds ?? 3600) * 1000;
   const timer = setTimeout(() => {
     run("UPDATE worker SET kill_reason = 'timeout', kill_evidence = ? WHERE id = ? AND kill_reason IS NULL",
       `Still running after ${Math.round(limitMs / 60000)} minutes.`, w.id);
@@ -62,7 +65,7 @@ export async function runWorker(workerId: number) {
 
   const stdout = readFileSync(w.out_path!, "utf8");
   const stderr = readFileSync(w.err_path!, "utf8");
-  const parsed = parseOutput(provider.work.output, stdout, stderr, code);
+  const parsed = parseOutput(cmd.output, stdout, stderr, code);
 
   // Summarise what changed in the worktree, for the review card.
   let changes = "";
@@ -83,6 +86,18 @@ export async function runWorker(workerId: number) {
     if (cur.kill_reason) failStep(s.id, cur.kill_reason, cur.kill_evidence, fx);
     else if (parsed.isError) failStep(s.id, parsed.reason && parsed.reason !== "success" ? parsed.reason : code === null ? "couldn't start" : `exit ${code}`,
       tail(parsed.text || parsed.parseError || stderr || stdout) || null, fx);
-    else completeStep(s.id, fx, "daycare", JSON.stringify({ text: tail(parsed.text, 1200), changes }));
+    else {
+      const result = JSON.stringify({ text: tail(parsed.text, 1200), changes });
+      const queued = getItem(it.id)!.queued;
+      if (queued && provider.work!.follow_up) {
+        // You sent a message mid-run: go straight on with it in the same conversation.
+        run("UPDATE step SET result = ?, followup = ?, followup_session = ? WHERE id = ?", result, queued, parsed.session ?? cur.session_id, s.id);
+        run("UPDATE item SET queued = NULL WHERE id = ?", it.id);
+        fx.dispatch.push(s.id);
+      } else {
+        run("UPDATE step SET followup = NULL, followup_session = NULL WHERE id = ?", s.id);
+        completeStep(s.id, fx, "daycare", result);
+      }
+    }
   });
 }

@@ -5,7 +5,11 @@ import { BUILTIN_PROVIDERS } from "./assets";
 import { P } from "./paths";
 
 export type Output = { format?: "text" | "json"; result?: string; error?: string; session?: string; cost?: string; reason?: string };
-export type Command = { argv: string[]; prompt_via?: "stdin" | "arg" | "file"; output?: Output; timeout_seconds?: number; resume?: string[] };
+export type Command = {
+  argv: string[]; prompt_via?: "stdin" | "arg" | "file"; output?: Output; timeout_seconds?: number;
+  resume?: string[]; // work only: how you'd reopen the conversation yourself, shown on cards
+  follow_up?: Command; // work only: send one more message in the same conversation ({session}) and exit
+};
 export type Provider = { name: string; label?: string; ask: Command; work?: Command; governance?: "claude-hooks" | "none" };
 export type Parsed = { text: string; isError: boolean; session?: string; cost?: number; reason?: string; parseError?: string };
 export type CallResult = Parsed & { code: number | null; stdout: string; stderr: string; ms: number; timedOut: boolean };
@@ -20,7 +24,7 @@ export function parseProvider(text: string, source: string): Provider {
   const fix = (c?: Command) => {
     if (c?.argv?.[0]?.startsWith("./") && isAbsolute(source)) c.argv[0] = resolve(dirname(source), c.argv[0]);
   };
-  fix(p.ask); fix(p.work);
+  fix(p.ask); fix(p.work); fix(p.work?.follow_up);
   return p;
 }
 

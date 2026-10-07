@@ -1,0 +1,16 @@
+name: fake-followup
+label: Fake internal AI (with follow-ups)
+ask:
+  argv: [./../fake-internal-ai, chat, --no-tools, --json]
+  prompt_via: stdin
+  output: { format: json, result: answer }
+  timeout_seconds: 10
+work:
+  argv: [./../fake-internal-ai, agent, --yes, --session, "{session}"]
+  prompt_via: stdin
+  output: { format: text }
+  timeout_seconds: 30
+  follow_up:
+    argv: [./../fake-internal-ai, agent, --yes, --resume, "{session}"]
+    prompt_via: stdin
+governance: none

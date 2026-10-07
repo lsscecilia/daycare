@@ -11,11 +11,13 @@ import { gitInfo, notify, now, pidStart, real, sh, slugify, spawnDetached, worke
 export type Item = {
   id: number; slug: string; title: string; repo: string; worktree: string | null; branch: string | null; base: string | null;
   here: number; template: string | null; status: string; reviewed_at: number | null; created_at: number; updated_at: number;
+  queued: string | null;
 };
 export type Step = {
   id: number; item_id: number; idx: number; name: string; owner: "me" | "agent"; status: string; provider: string | null;
   prompt: string | null; checklist: string | null; budget_usd: number | null; max_minutes: number | null;
   failure_reason: string | null; evidence: string | null; result: string | null; started_at: number | null; completed_at: number | null;
+  followup: string | null; followup_session: string | null;
 };
 export type Worker = {
   id: number; kind: "dispatch" | "session"; provider: string | null; session_id: string | null; item_id: number | null; step_id: number | null;
@@ -143,9 +145,11 @@ export function startStep(stepId: number) {
   try { capped = !!loadProvider(provider).work?.argv.some((a) => a.includes("{budget}")); } catch {}
   const id = tx(() => {
     const t = now();
+    // A follow-up continues the last run's conversation, so the session id moves to this run.
+    if (s.followup_session) run("UPDATE worker SET session_id = NULL WHERE session_id = ?", s.followup_session);
     const wid = Number(run(`INSERT INTO worker (kind, provider, session_id, item_id, step_id, cwd, repo_root, repo_key, title, status, budget, started_at, last_event_at)
       VALUES ('dispatch', ?, ?, ?, ?, ?, ?, ?, ?, 'starting', ?, ?, ?)`,
-      provider, crypto.randomUUID(), it.id, stepId, wt.path, wt.path, g.common ?? null, it.slug, capped ? s.budget_usd ?? config().budget_usd : null, t, t).lastInsertRowid);
+      provider, s.followup_session ?? crypto.randomUUID(), it.id, stepId, wt.path, wt.path, g.common ?? null, it.slug, capped ? s.budget_usd ?? config().budget_usd : null, t, t).lastInsertRowid);
     run("UPDATE worker SET out_path = ?, err_path = ? WHERE id = ?", join(P.runs, `${wid}.out`), join(P.runs, `${wid}.err`), wid);
     return wid;
   });
@@ -153,6 +157,43 @@ export function startStep(stepId: number) {
   delete env.DAYCARE_WORKER; // only the tool itself carries the tag, not the supervisor
   const pid = spawnDetached(["__run", String(id)], env);
   run("UPDATE worker SET pid = ?, pid_started = ? WHERE id = ?", pid, pidStart(pid), id);
+}
+
+export const lastHelper = (itemId: number) =>
+  one<Worker>("SELECT * FROM worker WHERE item_id = ? AND kind = 'dispatch' ORDER BY id DESC LIMIT 1", itemId);
+
+// Can you send this task's helper a follow-up? Returns why not, or null if you can.
+export function cantTell(it: Item): string | null {
+  const w = lastHelper(it.id);
+  if (!w?.session_id || !w.step_id) return `No helper has worked on ${it.slug} yet.`;
+  try {
+    const p = loadProvider(w.provider ?? "claude");
+    return p.work?.follow_up ? null : `${p.label ?? p.name} can't continue a conversation (its provider file has no work.follow_up).`;
+  } catch (e) { return (e as Error).message; }
+}
+
+// Sends a task's helper one more message. It continues the same conversation in the same
+// worktree, then the task comes back to your desk. Mid-run, the message waits and goes out
+// as soon as that run finishes.
+export function tell(it: Item, text: string): string {
+  const t = text.trim();
+  if (!t) throw new Error("What should it do?");
+  const why = cantTell(it);
+  if (why) throw new Error(why);
+  const w = lastHelper(it.id)!;
+  if (w.status === "starting" || w.status === "running") {
+    run("UPDATE item SET queued = CASE WHEN queued IS NULL THEN ? ELSE queued || char(10) || char(10) || ? END WHERE id = ?", t, t, it.id);
+    return `Queued. ${it.slug} gets it when this run finishes.`;
+  }
+  const s = getStep(w.step_id!)!;
+  txfx((fx) => {
+    // Reopen the helper's step. Any later steps (your review, your test) come again after it.
+    run("UPDATE step SET status = 'pending' WHERE item_id = ? AND idx > ? AND status != 'pending'", it.id, s.idx);
+    run("UPDATE step SET followup = ?, followup_session = ? WHERE id = ?", [it.queued, t].filter(Boolean).join("\n\n"), w.session_id, s.id);
+    run("UPDATE item SET status = 'active', reviewed_at = NULL, queued = NULL WHERE id = ?", it.id);
+    enterStep(s.id, fx, "user");
+  });
+  return `Sent. ${it.slug} is on it.`;
 }
 
 // Which item does the user mean? An id, a slug, a slug prefix, or the item whose repo or

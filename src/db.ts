@@ -40,6 +40,13 @@ const MIGRATIONS = [
     branch TEXT, head TEXT, status_porcelain TEXT, diff_stat TEXT, note TEXT, session_id TEXT);
   CREATE TABLE kv (k TEXT PRIMARY KEY, v TEXT)
   `,
+  // v2: follow-ups. step.followup is a message to send by continuing the helper's conversation
+  // (followup_session) instead of starting fresh; item.queued waits for a run in progress.
+  `
+  ALTER TABLE step ADD COLUMN followup TEXT;
+  ALTER TABLE step ADD COLUMN followup_session TEXT;
+  ALTER TABLE item ADD COLUMN queued TEXT
+  `,
 ];
 
 let _db: Database | undefined;

@@ -3,9 +3,11 @@
 A daycare for your AI agents. See what each one is doing and who's waiting on you, in your
 terminal or in a cozy little room in your browser.
 
-- Every Claude Code session on your Mac shows up by itself: working, waiting for you, or done.
+- Every Claude Code session on your Mac shows up by itself: working, or "your turn" with
+  what it needs from you.
 - `daycare run "fix the flaky cart test"` hands a job to a helper. It works in its own git
-  worktree, then the task lands on your desk to review.
+  worktree, then the task lands on your desk to review. Send it follow-ups in the same
+  conversation with `daycare tell`, or by clicking it in the room.
 - Two sessions can't edit the same file at once. A helper stuck in a loop gets stopped.
   A helper that crashes gets flagged.
 - Screenshot a message (⌃⌥T, or paste it into the UI). Daycare reads it on your Mac, runs
@@ -29,11 +31,16 @@ daemon.
 daycare                      # the board
 daycare ui                   # the room
 daycare run "<what to do>"   # give a helper a job
+daycare tell <task> "<text>" # follow-up for a helper (queued if it's mid-run)
 daycare approve <task>       # done reviewing / done with your step
 daycare focus 45             # hold notifications except urgent ones
 daycare snap                 # screenshot a message (bind to ⌃⌥T in the Shortcuts app)
 daycare help                 # everything else
 ```
+
+In the room, type a job in the box at the top and pick a repo, or type a `daycare` command.
+Click a helper or task card and the box talks to that helper instead. Click one of your own
+terminal sessions and **Go to it** switches to its Terminal or iTerm tab.
 
 ## Use your company's AI tool
 
