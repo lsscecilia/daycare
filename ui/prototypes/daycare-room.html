@@ -1,0 +1,555 @@
+<title>Daycare Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one cozy room scene where each AI helper sits at a desk, then "your desk" cards underneath.
+   Single, deliberate daytime-room look. Every colour is set explicitly so it reads on any host theme. */
+:root {
+  --page: #f3efe6;
+  --ink: #2c2a3a;
+  --ink-soft: #6d6880;
+  --card: #fffdf8;
+  --edge: #e2dacb;
+  --wall: #cfe6df;
+  --wall-2: #bcdcd3;
+  --floor: #e2b98a;
+  --floor-2: #d6aa79;
+  --wood: #a8744a;
+  --wood-dark: #8a5c38;
+  --ok: #3ccf6e;
+  --you: #f5b83d;
+  --bad: #f05a5a;
+  --idle: #9db4c8;
+  --accent: #6d5ae6;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--f-body); font-size: 15px; }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 40px; display: grid; gap: 14px; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.top h1 { font-family: var(--f-display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1; letter-spacing: -.01em; }
+.top .sub { color: var(--ink-soft); font-size: 14px; }
+.tag { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 3px 8px; border-radius: 99px; }
+.top .grow { flex: 1; }
+.btn { border: 2px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 12px; padding: 7px 14px; font-weight: 800; box-shadow: 0 3px 0 var(--ink); transition: transform .08s, box-shadow .08s; display: inline-flex; align-items: center; gap: 8px; }
+.btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.btn.small { padding: 4px 10px; font-size: 13px; border-radius: 10px; box-shadow: 0 2px 0 var(--ink); }
+.btn.go { background: var(--ok); }
+.btn.on { background: var(--you); }
+.btn kbd { font-family: var(--f-body); font-size: 11px; font-weight: 700; opacity: .65; }
+.btn.ghost { border-color: var(--edge); box-shadow: 0 2px 0 var(--edge); color: var(--ink-soft); }
+
+/* Scene */
+.scene-scroll { overflow-x: auto; border-radius: 22px; border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--ink); }
+.scene { position: relative; min-width: 760px; aspect-ratio: 2 / 1; container-type: inline-size; overflow: hidden;
+  background:
+    linear-gradient(var(--wall) 0 58%, var(--wood-dark) 58% 59.4%, transparent 59.4%),
+    repeating-linear-gradient(90deg, var(--floor) 0 7.5%, var(--floor-2) 7.5% 7.7%);
+}
+.scene::before { content: ""; position: absolute; inset: 0 0 42% 0; background: repeating-linear-gradient(90deg, transparent 0 5cqw, var(--wall-2) 5cqw 5.2cqw); opacity: .5; }
+.window { position: absolute; left: 3%; top: 8%; width: 13%; height: 30%; border: .5cqw solid #fff; border-radius: 1cqw; background: var(--sky, #9fd6ff); box-shadow: inset 0 0 0 .25cqw #fff; overflow: hidden; }
+.window::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: .35cqw; background: #fff; }
+.sun { position: absolute; width: 3cqw; height: 3cqw; border-radius: 50%; background: var(--sun, #ffe27a); right: 18%; top: 18%; }
+.clock { position: absolute; left: 50%; top: 6%; width: 6cqw; height: 6cqw; transform: translateX(-50%); }
+.poster { position: absolute; left: 75%; top: 10%; width: 10cqw; padding: .6cqw; background: #fff6d9; border: .3cqw solid var(--ink); border-radius: .6cqw; transform: rotate(3deg); font-family: var(--f-display); font-weight: 800; font-size: 1.5cqw; line-height: 1.05; text-align: center; color: var(--accent); }
+.plant { position: absolute; right: 1.5%; bottom: 36%; width: 5cqw; }
+
+.station { position: absolute; bottom: 7%; width: 16%; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.station svg.person { width: 100%; height: auto; display: block; overflow: visible; }
+.station:hover .person, .station.sel .person { filter: drop-shadow(0 0 .5cqw rgb(255 255 255 / .95)); }
+.nameplate { margin-top: -.6cqw; background: var(--card); border: .2cqw solid var(--ink); border-radius: 99px; padding: .1cqw 1cqw; font-weight: 800; font-size: clamp(11px, 1.15cqw, 14px); white-space: nowrap; }
+
+.bubble { background: #fff; border: .22cqw solid var(--ink); border-radius: 1.4cqw; padding: .5cqw .9cqw; font-size: clamp(11px, 1.2cqw, 15px); font-weight: 700; line-height: 1.25; text-align: center; max-width: 100%; position: relative; margin-bottom: .9cqw; min-height: 2.4cqw; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -.9cqw; width: 1cqw; height: 1cqw; background: #fff; border-right: .22cqw solid var(--ink); border-bottom: .22cqw solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+.bubble small { display: block; font-weight: 600; color: var(--ink-soft); font-size: .92em; }
+.bar { height: .6cqw; min-height: 5px; border-radius: 99px; background: #eee6d8; overflow: hidden; margin-top: .35cqw; }
+.bar i { display: block; height: 100%; background: var(--ok); border-radius: 99px; transition: width .6s; }
+
+.plumbob { width: 1.7cqw; height: 2.8cqw; margin-bottom: .2cqw; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000)); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); animation: bob 2.4s ease-in-out infinite, spin 4s linear infinite; filter: drop-shadow(0 0 .4cqw var(--c)); }
+.st-working { --c: var(--ok); } .st-done { --c: var(--you); } .st-stuck { --c: var(--bad); } .st-idle { --c: var(--idle); }
+@keyframes bob { 50% { translate: 0 -.5cqw; } }
+@keyframes spin { 0% { scale: 1 1; } 50% { scale: .35 1; } 100% { scale: 1 1; } }
+
+/* Character animation */
+.st-working .arm-l { animation: type .28s ease-in-out infinite alternate; }
+.st-working .arm-r { animation: type .28s ease-in-out .14s infinite alternate; }
+@keyframes type { to { transform: translateY(-3px); } }
+.eyes { animation: blink 4.5s infinite; transform-origin: 60px 50px; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.st-idle .head-g { transform: rotate(10deg); transform-origin: 60px 70px; }
+.st-stuck .logo { animation: flash .5s steps(2) infinite; }
+@keyframes flash { 50% { opacity: .2; } }
+.st-done .paper { animation: wave .9s ease-in-out infinite alternate; transform-origin: 92px 70px; }
+@keyframes wave { to { transform: rotate(-10deg); } }
+.zzz { position: absolute; top: 18%; right: 14%; font-family: var(--f-display); font-weight: 800; color: var(--ink-soft); font-size: 1.8cqw; animation: float 2.6s ease-in infinite; pointer-events: none; }
+@keyframes float { from { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } to { transform: translate(1.5cqw, -3cqw); opacity: 0; } }
+.swirl { position: absolute; top: 31%; left: 50%; width: 3cqw; height: 3cqw; margin-left: -1.5cqw; border: .35cqw dotted var(--bad); border-radius: 50%; animation: spin2 1.2s linear infinite; pointer-events: none; }
+@keyframes spin2 { to { transform: rotate(360deg); } }
+
+/* Tug-of-war between two helpers editing the same file */
+.tug { position: absolute; height: 0; border-top: .35cqw dashed var(--bad); pointer-events: none; }
+.tug span { position: absolute; left: 50%; top: -2.9cqw; transform: translateX(-50%); white-space: nowrap; background: var(--bad); color: #fff; font-weight: 800; font-size: clamp(10px, 1.05cqw, 13px); padding: .15cqw .8cqw; border-radius: 99px; }
+
+/* Mailbox and the cat */
+.mailbox { position: absolute; left: 1.5%; bottom: 6%; width: 7cqw; cursor: pointer; }
+.mailbox .count { position: absolute; top: -1.6cqw; right: -.6cqw; min-width: 2.2cqw; height: 2.2cqw; border-radius: 99px; background: var(--bad); color: #fff; font-weight: 800; font-size: 1.3cqw; display: grid; place-items: center; border: .2cqw solid var(--ink); }
+.cat { position: absolute; width: 6.5cqw; transition: left 2.4s ease-in-out, bottom 2.4s ease-in-out; z-index: 3; }
+.cat.run { transition-duration: 1s; }
+.cat.walk svg { animation: hop .3s ease-in-out infinite alternate; }
+@keyframes hop { to { transform: translateY(-.5cqw); } }
+.cat .bubble { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; margin-bottom: .6cqw; }
+.cat .zzz { top: -20%; right: -10%; }
+.envelope { position: absolute; width: 3cqw; z-index: 4; transition: left 1s ease-in, top 1s ease-in, transform 1s; pointer-events: none; }
+
+.dnd { position: absolute; right: 2%; bottom: 47%; background: var(--bad); color: #fff; font-weight: 800; font-size: 1.15cqw; padding: .3cqw .8cqw; border-radius: .6cqw; border: .2cqw solid var(--ink); transform: rotate(-4deg); }
+
+/* Your desk */
+.desk-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.desk-h h2 { font-family: var(--f-display); font-weight: 800; font-size: 22px; margin: 0; }
+.desk-h p { margin: 0; color: var(--ink-soft); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.card { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; box-shadow: 0 4px 0 var(--ink); min-width: 0; }
+.card.new { animation: pop .35s ease-out; }
+@keyframes pop { from { transform: scale(.9); opacity: 0; } }
+.card.urgent { border-color: var(--bad); box-shadow: 0 4px 0 var(--bad); }
+.card .kind { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 2px 8px; border-radius: 99px; justify-self: start; }
+.k-review { background: #fff0c9; color: #8a5a00; } .k-test { background: #dff3ff; color: #145a86; } .k-msg { background: #f0e8ff; color: #5236b8; } .k-stuck, .k-p0 { background: #ffe0dd; color: #a8231f; } .k-done { background: #e6efe9; color: #2f6b45; }
+.card h3 { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.3; }
+.card p { margin: 0; color: var(--ink-soft); line-height: 1.45; }
+.card .who { font-size: 13px; color: var(--ink-soft); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.checks input { width: 17px; height: 17px; accent-color: var(--ok); }
+.checks input:checked + span { text-decoration: line-through; color: var(--ink-soft); }
+.quote { margin: 0; padding: 8px 10px; background: #f6f1ff; border-radius: 10px; font-style: italic; }
+.found { font-size: 13px; display: grid; gap: 2px; }
+.found code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+textarea { width: 100%; min-height: 70px; resize: vertical; border: 2px solid var(--edge); border-radius: 10px; padding: 8px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); }
+details summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
+details[open] summary { margin-bottom: 6px; }
+.empty { padding: 20px; text-align: center; border: 2px dashed var(--edge); border-radius: 16px; color: var(--ink-soft); grid-column: 1 / -1; }
+
+/* Helper inspector */
+.inspect { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; box-shadow: 0 4px 0 var(--ink); }
+.inspect .who { font-family: var(--f-display); font-weight: 800; font-size: 20px; }
+.inspect .meta { color: var(--ink-soft); font-size: 14px; flex: 1; min-width: 200px; }
+.inspect .meter { width: 160px; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+.inspect .meter .bar { height: 8px; margin-top: 3px; }
+.inspect.hint { box-shadow: none; border-style: dashed; border-color: var(--edge); color: var(--ink-soft); }
+
+.toast { position: fixed; left: 16px; bottom: 16px; max-width: min(380px, calc(100% - 32px)); background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 10px 14px; box-shadow: 0 4px 0 var(--ink); z-index: 10; display: flex; gap: 10px; align-items: center; }
+.toast.p0 { border-color: var(--bad); box-shadow: 0 4px 0 var(--bad); }
+.toast b { display: block; }
+.toast svg { width: 40px; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Daycare</h1>
+    <span class="sub" id="summary"></span>
+    <span class="tag" title="Made-up example items, not your real workspace">Example data</span>
+    <span class="grow"></span>
+    <button class="btn" id="b-drop" type="button">+ Screenshot <kbd>⌃⌥T</kbd></button>
+    <button class="btn" id="b-focus" type="button" aria-pressed="false">Focus</button>
+  </header>
+
+  <div class="scene-scroll">
+    <div class="scene" id="scene" aria-label="The room where your AI helpers work"></div>
+  </div>
+
+  <div class="inspect hint" id="inspect">Tap a helper</div>
+
+  <section>
+    <div class="desk-h"><h2>On your desk</h2><p id="desk-sub"></p></div>
+    <div class="cards" id="cards" style="margin-top:10px"></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+
+/* ---------- Characters ---------- */
+const LOOKS = {
+  claude:  { shirt: "#e8875c", skin: "#f2c7a5", hair: "#6b3f2a", style: "short", laptop: "#d9d4cc", logo: "#e8875c" },
+  claude2: { shirt: "#f2a65e", skin: "#c98e6b", hair: "#2f2433", style: "bun", laptop: "#d9d4cc", logo: "#e8875c" },
+  cursor:  { shirt: "#6f8dff", skin: "#8d5a3b", hair: "#1e1b26", style: "cap", laptop: "#3a3d4a", logo: "#9fb3ff" },
+  bot:     { shirt: "#aab7c4", skin: "#cfd8e1", hair: "#7d8b99", style: "bot", laptop: "#3a3d4a", logo: "#7be0c3" },
+  you:     { shirt: "#7cc9a5", skin: "#f5d3b8", hair: "#4a3557", style: "long", laptop: "#d9d4cc", logo: "#7cc9a5" },
+};
+function hair(l) {
+  switch (l.style) {
+    case "short": return `<path d="M40 46 Q42 26 60 26 Q78 26 80 46 Q74 36 60 36 Q46 36 40 46Z" fill="${l.hair}"/>`;
+    case "bun": return `<circle cx="60" cy="24" r="8" fill="${l.hair}"/><path d="M40 48 Q40 28 60 28 Q80 28 80 48 Q72 35 60 36 Q48 35 40 48Z" fill="${l.hair}"/>`;
+    case "cap": return `<path d="M39 44 Q40 26 60 26 Q80 26 81 44Z" fill="#ff7a59"/><rect x="58" y="40" width="30" height="5" rx="2.5" fill="#ff7a59"/>`;
+    case "long": return `<path d="M38 72 Q34 30 60 27 Q86 30 82 72 L76 72 Q78 44 60 38 Q44 44 44 72Z" fill="${l.hair}"/>`;
+    default: return "";
+  }
+}
+function face(state, bot) {
+  const eyes = state === "idle"
+    ? `<path d="M50 51 q3 3 6 0 M64 51 q3 3 6 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    : `<g class="eyes"><circle cx="53" cy="50" r="2.6" fill="#2c2a3a"/><circle cx="67" cy="50" r="2.6" fill="#2c2a3a"/></g>`;
+  const mouth = state === "stuck" ? `<path d="M54 61 q6 -5 12 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    : state === "done" ? `<path d="M53 58 q7 8 14 0 Z" fill="#2c2a3a"/>`
+    : state === "idle" ? `<circle cx="60" cy="60" r="2" fill="#2c2a3a"/>`
+    : `<path d="M54 58 q6 5 12 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  const cheeks = bot ? "" : `<circle cx="47" cy="57" r="3.2" fill="#ff9aa2" opacity=".55"/><circle cx="73" cy="57" r="3.2" fill="#ff9aa2" opacity=".55"/>`;
+  const sweat = state === "stuck" ? `<path d="M81 40 q4 7 0 10 q-4 -3 0 -10Z" fill="#7cc7ff"/>` : "";
+  return eyes + mouth + cheeks + sweat;
+}
+function personSVG(look, state, extra = "") {
+  const l = LOOKS[look], bot = l.style === "bot";
+  const head = bot
+    ? `<rect x="40" y="32" width="40" height="36" rx="10" fill="${l.skin}"/><rect x="45" y="39" width="30" height="24" rx="6" fill="#2f3542"/><line x1="60" y1="32" x2="60" y2="22" stroke="${l.hair}" stroke-width="3"/><circle cx="60" cy="20" r="4" fill="#7be0c3"/>`
+      + `<g transform="translate(0 0)">${face(state, true).replace(/#2c2a3a/g, "#7be0c3")}</g>`
+    : `<circle cx="60" cy="50" r="21" fill="${l.skin}"/>${hair(l)}${face(state, false)}`;
+  const paper = state === "done" ? `<g class="paper"><rect x="86" y="44" width="20" height="26" rx="2" fill="#fff" stroke="#2c2a3a" stroke-width="2"/><path d="M90 51h12M90 56h12M90 61h8" stroke="#b9b3a6" stroke-width="2"/><rect x="84" y="66" width="10" height="16" rx="5" fill="${l.skin}" transform="rotate(-25 89 74)"/></g>` : "";
+  const armR = state === "done" ? "" : `<rect class="arm-r" x="80" y="90" width="13" height="9" rx="4.5" fill="${l.skin}"/>`;
+  return `<svg class="person" viewBox="0 0 120 140" aria-hidden="true">
+    <rect x="28" y="42" width="64" height="66" rx="16" fill="#8f7ee6"/>
+    <rect x="37" y="70" width="46" height="42" rx="17" fill="${l.shirt}"/>
+    <g class="head-g">${head}</g>
+    ${paper}
+    <rect class="arm-l" x="27" y="90" width="13" height="9" rx="4.5" fill="${l.skin}"/>${armR}
+    <path d="M36 102 L41 78 L79 78 L84 102Z" fill="${l.laptop}" stroke="#2c2a3a" stroke-width="1.5"/>
+    <circle class="logo" cx="60" cy="90" r="4.5" fill="${state === "stuck" ? "#f05a5a" : l.logo}"/>
+    <rect x="6" y="101" width="108" height="9" rx="3" fill="#a8744a"/>
+    <rect x="12" y="110" width="6" height="28" rx="2" fill="#8a5c38"/><rect x="102" y="110" width="6" height="28" rx="2" fill="#8a5c38"/>
+    ${extra}
+  </svg>`;
+}
+const MUG = `<g><rect x="94" y="90" width="9" height="11" rx="2" fill="#fff" stroke="#2c2a3a" stroke-width="1.5"/><path d="M103 93 q4 2 0 5" stroke="#2c2a3a" stroke-width="1.5" fill="none"/></g>`;
+const HEADPHONES = `<path d="M37 52 Q37 22 60 22 Q83 22 83 52" stroke="#2c2a3a" stroke-width="4" fill="none"/><rect x="33" y="46" width="9" height="14" rx="4" fill="#f05a5a"/><rect x="78" y="46" width="9" height="14" rx="4" fill="#f05a5a"/>`;
+const PAPERS = (n) => Array.from({ length: Math.min(n, 6) }, (_, i) => `<rect x="${12 + (i % 2) * 2}" y="${95 - i * 3}" width="20" height="5" rx="1" fill="${i % 2 ? "#fff6d9" : "#fff"}" stroke="#2c2a3a" stroke-width="1"/>`).join("");
+
+const CAT = (mode) => `<svg viewBox="0 0 80 60" aria-hidden="true">
+  <path d="M62 44 q14 -4 10 -22" stroke="#3b3346" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="44" cy="44" rx="22" ry="13" fill="#3b3346"/>
+  <circle cx="24" cy="30" r="13" fill="#3b3346"/>
+  <path d="M14 22 L15 9 L23 18Z M26 18 L33 9 L35 22Z" fill="#3b3346"/>
+  ${mode === "sleep" ? `<path d="M17 31 q3 2 6 0 M26 31 q3 2 6 0" stroke="#ffd36e" stroke-width="1.6" fill="none"/>` : `<circle cx="19" cy="30" r="2.4" fill="#ffd36e"/><circle cx="29" cy="30" r="2.4" fill="#ffd36e"/>`}
+  <path d="M22 36 q2 2 4 0" stroke="#ff9aa2" stroke-width="1.5" fill="none"/>
+  ${mode === "carry" ? `<rect x="12" y="36" width="16" height="11" rx="1.5" fill="#fff" stroke="#2c2a3a" stroke-width="1.2"/><path d="M12 36 l8 6 l8 -6" stroke="#2c2a3a" stroke-width="1.2" fill="none"/>` : ""}
+  ${mode === "read" ? `<circle cx="8" cy="40" r="6" fill="#cfefff" stroke="#2c2a3a" stroke-width="2"/><line x1="12" y1="45" x2="17" y2="51" stroke="#2c2a3a" stroke-width="3"/>` : ""}
+</svg>`;
+const MAILBOX = `<svg viewBox="0 0 70 110" aria-hidden="true"><rect x="31" y="50" width="8" height="58" fill="#8a5c38"/><rect x="8" y="20" width="54" height="34" rx="16" fill="#6d5ae6" stroke="#2c2a3a" stroke-width="2.5"/><rect x="14" y="34" width="22" height="6" rx="3" fill="#2c2a3a" opacity=".5"/><g id="flag"><rect x="58" y="6" width="4" height="30" fill="#2c2a3a"/><rect x="58" y="6" width="16" height="10" fill="#f05a5a"/></g></svg>`;
+
+/* ---------- Example workspace ---------- */
+const SLOTS = [11.5, 28, 44.5, 61];
+const helpers = [
+  { id: "h1", name: "Claude", look: "claude", slot: 0, state: "working", task: "migrate-db", doing: "Writing tests", p: .35, rate: .008, spent: .84, budget: 3, files: ["src/db/schema.ts"] },
+  { id: "h3", name: "Cursor", look: "cursor", slot: 1, state: "working", task: "billing-rounding", doing: "Fixing rounding", p: .5, rate: .004, files: ["src/db/schema.ts", "src/billing/round.ts"] },
+  { id: "h2", name: "Claude", look: "claude2", slot: 2, state: "working", task: "flaky-ci", doing: "Hunting a flaky test", p: .3, rate: .018, spent: .41, budget: 2, loopAt: .6, files: ["test/e2e/cart.spec.ts"] },
+  { id: "h4", name: "Audit bot", look: "bot", slot: 3, state: "working", task: "security-audit", doing: "Scanning dependencies", p: .74, rate: .03, files: [] },
+];
+for (const h of helpers) h.sid = h.look.startsWith("claude") ? uuid() : null;
+
+let cards = [
+  { id: "c1", kind: "review", title: "auth-refactor", body: "Refactored src/db/. All 214 tests pass. 9 files changed.", who: "From Claude · 12 min ago",
+    resume: ["cd ~/work/api/.worktrees/cs-auth-refactor", "claude --resume 3f2a9c1e-…"] },
+  { id: "c2", kind: "test", title: "checkout-bug", who: "Your step · waiting 2 hours", task: "checkout-bug",
+    checks: [{ t: "Log in as the test user", d: true }, { t: "Upload the sample CSV", d: true }, { t: "Click through checkout", d: false }, { t: "Check the confirmation email arrives", d: false }] },
+  { id: "c3", kind: "msg", title: "Dave: Auth API ok?", verdict: "Looks fine.", who: "Checked by Mochi · 18 min ago",
+    quote: "hey is the Auth API ok? seeing some slow logins",
+    found: [{ c: "No errors in auth-api in the last hour.", cmd: "docker logs auth-api --since 1h | grep -c ERROR → 0" }, { c: "Login speed is normal.", cmd: "kubectl top pod -l app=auth-api → cpu 41%" }],
+    draft: "Auth API looks healthy from here: no errors in the last hour and login speed is normal. Is it one account or everyone?" },
+  { id: "c4", kind: "done", title: "nav-redesign", body: "Everything's done. You just never ticked it off.", who: "Finished by Claude" },
+];
+const letters = [
+  { from: "Marco", short: "review my PR?", where: "Teams", text: "can you look at my PR when you get a chance, no rush", p0: false,
+    found: [{ c: "PR #485 is a 12-line docs change. Checks are green.", cmd: "gh pr view 485 → +12 −3 · 3/3 checks passed" }], draft: "Sure, I'll look this afternoon!", verdict: "Small docs PR. No rush." },
+  { from: "Priya", short: "checkout 500s", where: "Slack #incidents", text: "checkout is throwing 500s for everyone??", p0: true,
+    found: [{ c: "checkout-api returned 412 errors in the last 10 minutes.", cmd: "kubectl logs deploy/checkout-api --since=10m | grep -c ' 500 ' → 412" }, { c: "It started 2 minutes after this morning's deploy (a91c3).", cmd: "gh run list -w deploy --limit 1 → a91c3 · 15:00" }],
+    draft: "Seeing it too. checkout-api has been erroring since 15:02, right after the a91c3 deploy. Rolling back now.", verdict: "Real. Checkout is down." },
+  { from: "#deploys", short: "staging failed", where: "Slack", text: "staging deploy of billing-svc failed", p0: false,
+    found: [{ c: "The deploy is missing a setting called BILLING_REGION.", cmd: "gh run view 88213 --log-failed → BILLING_REGION is not set" }], draft: "That's from my migration. Adding BILLING_REGION to staging now.", verdict: "Missing one setting." },
+];
+const queue = [];
+let mailWaiting = 0, catBusy = false, focusUntil = 0, held = 0, doneToday = 2, t = 0, sel = null;
+const newIds = new Set();
+let nextCard = 10;
+
+/* ---------- Scene ---------- */
+const scene = $("#scene");
+function buildRoom() {
+  scene.innerHTML = `
+    <div class="window" id="window"><div class="sun"></div></div>
+    <svg class="clock" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#2c2a3a" stroke-width="3"/><line id="hh" x1="20" y1="20" x2="20" y2="11" stroke="#2c2a3a" stroke-width="3" stroke-linecap="round"/><line id="mh" x1="20" y1="20" x2="20" y2="6" stroke="#2c2a3a" stroke-width="2" stroke-linecap="round"/></svg>
+    <div class="poster">ship<br>it!</div>
+    <svg class="plant" viewBox="0 0 50 80" aria-hidden="true"><path d="M25 50 Q10 30 14 12 Q24 28 25 50 Q30 24 40 14 Q42 34 25 50 Q22 34 26 6 Q32 30 25 50" fill="#4caf7a"/><path d="M12 50 h26 l-4 28 h-18z" fill="#e8875c" stroke="#2c2a3a" stroke-width="2"/></svg>
+    <div class="mailbox" id="mailbox" title="Mailbox: messages you dropped in">${MAILBOX}<span class="count" id="mailcount" hidden></span></div>
+    <div id="stations"></div>
+    <div class="station" id="you" style="left:79%;width:17%"></div>
+    <div class="cat" id="cat" style="left:9%;bottom:3%"></div>
+    <div class="dnd" id="dnd" hidden>Do not disturb</div>`;
+  $("#mailbox").addEventListener("click", () => toast("Mochi", "⌃⌥T to send me a screenshot", false, true));
+}
+function sky() {
+  const h = new Date().getHours();
+  const [s, sun] = h < 6 || h >= 20 ? ["#2b2f5c", "#f4f1c9"] : h < 9 ? ["#ffc6a8", "#ffe27a"] : h < 17 ? ["#9fd6ff", "#ffe27a"] : ["#ffb38a", "#ff9a5c"];
+  const w = $("#window"); w.style.setProperty("--sky", s); w.style.setProperty("--sun", sun);
+  const d = new Date(), hr = (d.getHours() % 12 + d.getMinutes() / 60) * 30, mn = d.getMinutes() * 6;
+  $("#hh").setAttribute("transform", `rotate(${hr} 20 20)`); $("#mh").setAttribute("transform", `rotate(${mn} 20 20)`);
+}
+
+function bubbleFor(h) {
+  if (h.state === "working") return `${esc(h.task)}<div class="bar"><i style="width:${Math.round(h.p * 100)}%"></i></div>`;
+  if (h.state === "done") return `Done!`;
+  if (h.state === "stuck") return `Help!`;
+  return `zzz`;
+}
+function renderStations() {
+  $("#stations").innerHTML = helpers.map((h) => `
+    <div class="station st-${h.state}${sel === h.id ? " sel" : ""}" data-id="${h.id}" style="left:${SLOTS[h.slot]}%" role="button" tabindex="0" aria-label="${esc(h.name)}: ${esc(h.state)}">
+      <div class="bubble">${bubbleFor(h)}</div>
+      <div class="plumbob"></div>
+      ${personSVG(h.look, h.state, h.state === "working" ? MUG : "")}
+      <div class="nameplate">${esc(h.name)}</div>
+      ${h.state === "idle" ? `<span class="zzz">z</span>` : ""}${h.state === "stuck" ? `<span class="swirl"></span>` : ""}
+    </div>`).join("");
+  // tug-of-war when two working helpers touch the same file
+  scene.querySelectorAll(".tug").forEach((e) => e.remove());
+  const w = helpers.filter((h) => h.state === "working");
+  for (let i = 0; i < w.length; i++) for (let j = i + 1; j < w.length; j++) {
+    const f = w[i].files.find((x) => w[j].files.includes(x)); if (!f) continue;
+    const [a, b] = [w[i], w[j]].sort((x, y) => x.slot - y.slot);
+    const el = document.createElement("div"); el.className = "tug";
+    el.style.left = (SLOTS[a.slot] + 11) + "%"; el.style.width = (SLOTS[b.slot] - SLOTS[a.slot] - 6) + "%"; el.style.top = "47%";
+    el.innerHTML = `<span>both editing ${esc(f.split("/").pop())}</span>`;
+    scene.appendChild(el);
+  }
+}
+function renderYou() {
+  const n = cards.length;
+  const state = n >= 6 ? "stuck" : n >= 3 ? "done" : "working";
+  const mood = n >= 6 ? "st-stuck" : n >= 3 ? "st-done" : "st-working";
+  const focus = !!focusUntil;
+  const left = focus ? Math.max(0, Math.round((focusUntil - Date.now()) / 1000)) : 0;
+  const bub = focus ? `🎧 ${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`
+    : n === 0 ? "All clear!" : `${n} to do`;
+  const el = $("#you");
+  el.className = `station ${focus ? "st-idle" : mood}`;
+  el.innerHTML = `<div class="bubble">${bub}</div><div class="plumbob"></div>${personSVG("you", focus ? "working" : state === "stuck" ? "stuck" : "working", PAPERS(n) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div>`;
+  $("#dnd").hidden = !focus;
+}
+function renderCat(mode, spot, msg) {
+  const c = $("#cat");
+  c.innerHTML = `${msg ? `<div class="bubble">${esc(msg)}</div>` : ""}${CAT(mode)}${mode === "sleep" ? `<span class="zzz">z</span>` : ""}`;
+  if (spot) { c.style.left = spot[0] + "%"; c.style.bottom = spot[1] + "%"; }
+  c.classList.toggle("walk", mode === "walk" || mode === "carry");
+}
+function renderMail() {
+  const n = $("#mailcount"); n.hidden = !mailWaiting; n.textContent = mailWaiting;
+  const f = $("#flag"); if (f) f.style.opacity = mailWaiting ? 1 : .25;
+}
+
+/* ---------- Cards ---------- */
+function cardHTML(c) {
+  const kinds = { review: ["k-review", "Review"], test: ["k-test", "Test"], msg: [c.p0 ? "k-p0" : "k-msg", c.p0 ? "Urgent" : "Message"], stuck: ["k-stuck", "Stuck"], done: ["k-done", "Done"] };
+  const [kc, kl] = kinds[c.kind];
+  let inner = "";
+  if (c.kind === "review") inner = `<div class="row"><button class="btn small go" data-a="ok">Looks good</button>${c.resume ? `<button class="btn small ghost" data-a="copy">Resume</button>` : ""}</div>`;
+  if (c.kind === "test") {
+    const all = c.checks.every((x) => x.d);
+    inner = `<ul class="checks">${c.checks.map((x, i) => `<li><label><input type="checkbox" id="${c.id}-k${i}" data-a="check" data-i="${i}"${x.d ? " checked" : ""}><span>${esc(x.t)}</span></label></li>`).join("")}</ul>
+      ${all ? `<div class="row"><button class="btn small go" data-a="handoff">Send to a helper</button></div>` : ""}`;
+  }
+  if (c.kind === "msg") inner = `<p>${esc(c.verdict)}</p>
+      <details><summary>Details</summary><div class="checks"><blockquote class="quote">"${esc(c.quote)}"</blockquote>${c.found.map((f) => `<div class="found"><span>✓ ${esc(f.c)}</span><code>${esc(f.cmd)}</code></div>`).join("")}<textarea id="${c.id}-draft" aria-label="Reply">${esc(c.draft)}</textarea></div></details>
+      <div class="row"><button class="btn small go" data-a="reply">Copy reply</button></div>`;
+  if (c.kind === "stuck") inner = `<div class="row"><button class="btn small go" data-a="retry">Retry</button><button class="btn small ghost" data-a="stop">Stop</button></div>`;
+  if (c.kind === "done") inner = `<div class="row"><button class="btn small go" data-a="ok">✓</button></div>`;
+  return `<article class="card${c.p0 ? " urgent" : ""}${newIds.has(c.id) ? " new" : ""}" data-id="${c.id}"><span class="kind ${kc}">${kl}</span><h3>${esc(c.title)}</h3>${inner}</article>`;
+}
+function renderCards() {
+  const order = { stuck: 0, msg: 1, review: 2, test: 3, done: 4 };
+  const sorted = [...cards].sort((a, b) => (b.p0 ? 1 : 0) - (a.p0 ? 1 : 0) || order[a.kind] - order[b.kind]);
+  $("#cards").innerHTML = sorted.length ? sorted.map(cardHTML).join("") : `<div class="empty">All clear ✨</div>`;
+  newIds.clear();
+  $("#desk-sub").textContent = `${doneToday} done today`;
+}
+function addCard(c) { c.id = c.id || "c" + nextCard++; newIds.add(c.id); cards.push(c); renderCards(); renderYou(); }
+function removeCard(id) { cards = cards.filter((c) => c.id !== id); renderCards(); renderYou(); }
+
+/* ---------- Header + inspector ---------- */
+function renderHeader() {
+  const working = helpers.filter((h) => h.state === "working").length;
+  const spend = helpers.reduce((s, h) => s + (h.spent || 0), 0);
+  $("#summary").textContent = `${working}/${helpers.length} working · $${spend.toFixed(2)}`;
+  const b = $("#b-focus"); b.classList.toggle("on", !!focusUntil); b.setAttribute("aria-pressed", String(!!focusUntil));
+  b.textContent = focusUntil ? "End focus" : "Focus";
+}
+function renderInspect() {
+  const el = $("#inspect"), h = helpers.find((x) => x.id === sel);
+  if (!h) { el.className = "inspect hint"; el.textContent = "Tap a helper"; return; }
+  el.className = "inspect";
+  el.innerHTML = `<span class="who">${esc(h.name)}</span><span class="meta">${h.task ? esc(h.task) : "free"}</span>
+    ${h.state === "working" ? `<div class="meter">${Math.round(h.p * 100)}%<div class="bar"><i style="width:${Math.round(h.p * 100)}%"></i></div></div>` : ""}
+    ${h.budget ? `<div class="meter">⚡ $${(h.budget - h.spent).toFixed(2)}<div class="bar"><i style="width:${Math.max(0, 100 - h.spent / h.budget * 100)}%;background:${h.spent / h.budget > .75 ? "var(--you)" : "var(--ok)"}"></i></div></div>` : ""}
+    <div class="row">${h.state === "working" ? `<button class="btn small ghost" data-a="stop-h">Stop</button>` : ""}${h.sid ? `<button class="btn small ghost" data-a="copy-h">Resume</button>` : ""}</div>`;
+}
+
+/* ---------- Toast ---------- */
+let tt;
+function toast(who, text, p0, force) {
+  if (focusUntil && !p0 && !force) { held++; renderYou(); return; }
+  const el = $("#toast");
+  el.className = "toast" + (p0 ? " p0" : "");
+  el.innerHTML = `${who === "Mochi" ? CAT("awake") : ""}<div><b>${esc(who)}</b>${esc(text)}</div>`;
+  el.hidden = false; clearTimeout(tt); tt = setTimeout(() => { el.hidden = true; }, p0 ? 9000 : 5000);
+}
+
+/* ---------- Helpers' lifecycle ---------- */
+const pending = [];
+function assign(h, job) {
+  Object.assign(h, { state: "working", task: job.task, doing: job.doing, p: 0, rate: job.rate || .02, files: job.files || [] });
+  if (h.look.startsWith("claude") && !h.sid) h.sid = uuid();
+  toast(h.name, `On it!`);
+}
+function freeUp(h) {
+  Object.assign(h, { state: "idle", task: null, doing: null, p: 0, files: [] });
+  const job = pending.shift(); if (job) assign(h, job);
+}
+function finish(h) {
+  h.state = "done";
+  addCard({ kind: "review", title: h.task, who: `From ${h.name} · just now`, helper: h.id,
+    body: h.task === "security-audit" ? "0 critical, 0 high, 2 low issues (dev-only packages)." : h.task === "checkout-bug" ? "QA report written from your test notes. All 4 checks passed." : "All tests pass.",
+    resume: h.sid ? [`claude --resume ${h.sid}`] : null });
+  toast(h.name, `${h.task} done!`);
+}
+function stuck(h) {
+  h.state = "stuck"; h.loopAt = null;
+  addCard({ kind: "stuck", title: h.task, who: "Stopped automatically", helper: h.id,
+    body: "It ran the same test command 5 times in a row without making progress, so I stopped it before it wasted more money." });
+  toast(h.name, `Stuck on ${h.task}`);
+}
+
+/* ---------- The cat and the mail ---------- */
+const SPOT = { bed: [9, 3], mailbox: [7, 9], desk: [44, 1], you: [74, 3] };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function catLoop() {
+  if (catBusy) return; catBusy = true;
+  while (queue.length) {
+    const L = queue.shift();
+    const cat = $("#cat"); cat.classList.toggle("run", L.p0);
+    renderCat("walk", SPOT.mailbox); await wait(L.p0 ? 1100 : 2500);
+    mailWaiting = Math.max(0, mailWaiting - 1); renderMail();
+    renderCat("carry", SPOT.desk); await wait(L.p0 ? 1100 : 2500);
+    renderCat("read", null, L.p0 ? "!?" : "…"); await wait(L.p0 ? 2500 : 4000);
+    renderCat("carry", SPOT.you); await wait(L.p0 ? 1100 : 2500);
+    addCard({ kind: "msg", p0: L.p0, title: `${L.from}: ${L.short}`, who: `Checked by Mochi · from ${L.where}`, quote: L.text, found: L.found, draft: L.draft, verdict: L.verdict });
+    renderCat("walk", null, L.p0 ? "!!" : "✓");
+    toast("Mochi", `${L.from}: ${L.verdict}`, L.p0);
+    await wait(1400);
+  }
+  $("#cat").classList.remove("run");
+  renderCat("walk", SPOT.bed); await wait(2500);
+  renderCat("sleep");
+  catBusy = false;
+}
+function drop() {
+  const L = letters.shift();
+  if (!L) { toast("Mochi", "No more example messages", false, true); return; }
+  const env = document.createElement("div"); env.className = "envelope";
+  env.innerHTML = `<svg viewBox="0 0 30 20"><rect x="1" y="1" width="28" height="18" rx="2" fill="${L.p0 ? "#ffe0dd" : "#fff"}" stroke="#2c2a3a" stroke-width="1.6"/><path d="M1 1 l14 10 l14 -10" stroke="#2c2a3a" stroke-width="1.6" fill="none"/></svg>`;
+  env.style.left = "50%"; env.style.top = "-8%"; scene.appendChild(env);
+  requestAnimationFrame(() => requestAnimationFrame(() => { env.style.left = "4%"; env.style.top = "62%"; env.style.transform = "rotate(-20deg) scale(.6)"; }));
+  setTimeout(() => { env.remove(); mailWaiting++; renderMail(); queue.push(L); catLoop(); }, 1050);
+}
+
+/* ---------- Focus ---------- */
+function toggleFocus() {
+  if (focusUntil) { endFocus(); return; }
+  focusUntil = Date.now() + 25 * 60 * 1000; held = 0;
+  renderYou(); renderHeader();
+}
+function endFocus() {
+  const n = held; focusUntil = 0; held = 0;
+  renderYou(); renderHeader();
+  toast("Welcome back", n ? `${n} new on your desk` : "Nothing new", false, true);
+}
+
+/* ---------- Tick ---------- */
+function tick() {
+  t++;
+  let changed = false;
+  for (const h of helpers) {
+    if (h.state !== "working") continue;
+    h.p = Math.min(1, h.p + h.rate);
+    if (h.budget) h.spent = +(h.spent + h.rate * .8).toFixed(3);
+    if (h.loopAt && h.p >= h.loopAt) { stuck(h); changed = true; continue; }
+    if (h.p >= 1) { finish(h); changed = true; continue; }
+    const st = scene.querySelector(`.station[data-id="${h.id}"]`);
+    if (st) st.querySelector(".bubble").innerHTML = bubbleFor(h);
+  }
+  if (changed) renderStations();
+  if (focusUntil && Date.now() >= focusUntil) endFocus();
+  if (focusUntil) renderYou();
+  if (t === 25 || t === 75) drop();
+  if (t % 30 === 0) sky();
+  renderHeader();
+  if (sel && helpers.find((x) => x.id === sel)?.state === "working") renderInspect();
+}
+
+/* ---------- Input ---------- */
+function copy(text) {
+  const fallback = () => { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch {} ta.remove(); };
+  try { navigator.clipboard.writeText(text).catch(fallback); } catch { fallback(); }
+}
+scene.addEventListener("click", (e) => {
+  const s = e.target.closest(".station[data-id]"); if (!s) return;
+  sel = sel === s.dataset.id ? null : s.dataset.id; renderStations(); renderInspect();
+});
+scene.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".station[data-id]")) { e.preventDefault(); e.target.click(); } });
+$("#inspect").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-a]"); const h = helpers.find((x) => x.id === sel); if (!b || !h) return;
+  if (b.dataset.a === "stop-h") { toast(h.name, "Stopped", false, true); freeUp(h); renderStations(); renderInspect(); renderHeader(); }
+  if (b.dataset.a === "copy-h") { copy(`claude --resume ${h.sid}`); b.textContent = "Copied!"; }
+});
+$("#cards").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-a]"); const art = e.target.closest(".card"); if (!b || !art) return;
+  const c = cards.find((x) => x.id === art.dataset.id); if (!c) return;
+  const h = c.helper && helpers.find((x) => x.id === c.helper);
+  switch (b.dataset.a) {
+    case "ok": doneToday++; removeCard(c.id); if (h && h.state === "done") { freeUp(h); renderStations(); } break;
+    case "copy": copy(c.resume.join("\n")); b.textContent = "Copied!"; break;
+    case "check": c.checks[+b.dataset.i].d = b.checked; renderCards(); break;
+    case "handoff": {
+      const job = { task: c.task, doing: "Writing the QA report", rate: .05, files: [] };
+      const free = helpers.find((x) => x.state === "idle");
+      removeCard(c.id);
+      if (free) assign(free, job); else { pending.push(job); toast("Daycare", "Queued for the next free helper", false, true); }
+      renderStations(); break;
+    }
+    case "reply": { const ta = document.getElementById(c.id + "-draft"); copy(ta ? ta.value : c.draft); doneToday++; removeCard(c.id); toast("Mochi", "Reply copied!", false, true); break; }
+    case "retry": if (h) { Object.assign(h, { state: "working", p: .3, rate: .015 }); removeCard(c.id); renderStations(); toast(h.name, "Trying again!"); } break;
+    case "stop": if (h) { removeCard(c.id); freeUp(h); renderStations(); } break;
+  }
+  renderHeader();
+});
+$("#b-drop").addEventListener("click", drop);
+$("#b-focus").addEventListener("click", toggleFocus);
+document.addEventListener("keydown", (e) => { if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); drop(); } });
+
+buildRoom(); sky(); renderStations(); renderYou(); renderCat("sleep"); renderMail(); renderCards(); renderHeader();
+setInterval(tick, 1000);
+})();
+</script>

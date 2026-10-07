@@ -1,0 +1,39 @@
+# Template for connecting your company's AI tool. Copy to ~/.daycare/providers/<name>.yaml.
+# Easiest path: ask your coding agent to use the daycare-connect skill, which fills this in
+# and tests it for you. Then check it yourself with:  bun tools/daycare-probe.ts <file> --work
+#
+# Placeholders Daycare fills in (each stays one argument; nothing goes through a shell):
+#   {prompt}       the prompt text            (when prompt_via: arg)
+#   {prompt_file}  a temp file holding it     (when prompt_via: file)
+#   {session}      a fresh UUID per run       (work only)
+#   {budget}       the step's budget in USD   (work only)
+#   {cwd}          the work item's worktree   (work only)
+#
+# Never put tokens or passwords here. If the tool needs one, read it from Keychain in a
+# small wrapper script and point argv at the wrapper.
+
+name: my-company-ai
+label: My company's AI
+
+# Required. Text in, text out, and NO tools. Daycare feeds it screenshots of other people's
+# messages (as text), so it must not be able to run commands or edit files.
+ask:
+  argv: [my-ai, chat, --no-tools, --json]
+  prompt_via: stdin            # stdin | arg | file
+  output:
+    format: json               # json | text
+    result: answer             # dotted path to the reply text in the JSON
+    error: error               # optional: path that is truthy on failure
+  timeout_seconds: 120
+
+# Optional. Only if the tool can work on code by itself (edit files, run tests) and exit.
+# Without this section it can still read your messages; it just can't be a worker.
+# work:
+#   argv: [my-ai, agent, --yes, --cwd, "{cwd}"]
+#   prompt_via: stdin
+#   output: { format: text }
+#   timeout_seconds: 3600
+#   resume: [my-ai, resume, "{session}"]
+
+# claude-hooks only for Claude Code. Everything else: none (Daycare watches it from outside).
+governance: none

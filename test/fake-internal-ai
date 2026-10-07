@@ -1,0 +1,27 @@
+#!/bin/bash
+# A stand-in for a company's internal AI CLI, used to test Daycare's provider support offline.
+#   fake-internal-ai chat  [--no-tools] [--json]   prompt on stdin
+#   fake-internal-ai agent [--yes]                  prompt on stdin, works in the current dir
+mode="$1"; shift
+tools=yes; json=no; yes=no
+for a in "$@"; do
+  case "$a" in --no-tools) tools=no ;; --json) json=yes ;; --yes) yes=yes ;; esac
+done
+prompt=$(cat)
+reply=""
+want=$(printf '%s' "$prompt" | sed -n 's/.*nothing else: \([A-Z0-9-]*\).*/\1/p')
+file=$(printf '%s' "$prompt" | sed -n 's/.*create a file named \([A-Za-z0-9._-]*\).*/\1/ip' | sed 's/\.$//')
+if [ -n "$want" ]; then
+  reply="$want"
+elif [ -n "$file" ]; then
+  if [ "$tools" = no ]; then reply="NO-TOOLS"
+  elif [ "$mode" = agent ] && [ "$yes" = no ]; then printf 'Allow writing %s? [y/N] ' "$file"; read -r ans; [ "$ans" = y ] && echo hi > "$file"; reply="DONE"
+  else echo hi > "$file"; reply="DONE"; fi
+else
+  reply="I read your message."
+fi
+if [ "$json" = yes ]; then
+  printf '{"answer": "%s", "conversation_id": "fake-%s"}\n' "$reply" "$$"
+else
+  printf '%s\n' "$reply"
+fi

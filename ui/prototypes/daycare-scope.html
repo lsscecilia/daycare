@@ -1,0 +1,694 @@
+<title>Daycare Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: an ATC radar scope on the left and a flight-strip board with a console on the right. Stacks on phones.
+   Single deliberate theme: a dark scope room, with paper strips in their real ATC colours. */
+:root {
+  --scope: #0a1317;
+  --panel: #0e1b20;
+  --raised: #132530;
+  --grid: #18323b;
+  --line: #24424d;
+  --fg: #d6e5e9;
+  --dim: #7d98a1;
+  --target: #79e3d2;
+  --amber: #ffb547;
+  --red: #ff5f5a;
+  --pink: #f2a7c3;
+  --paper-buff: #eadcb4;
+  --paper-blue: #b4cfee;
+  --paper-pink: #f1c4d4;
+  --paper-red: #f3b3a8;
+  --paper-grey: #c9cfd0;
+  --ink: #1d1b16;
+  --ink-dim: #5a5547;
+  --f-display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-data: "Martian Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--scope); color: var(--fg); font-family: var(--f-body); font-size: 14px; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--target); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding-inline: 16px; padding-block: 10px; gap: 10px; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: .22em; margin: 0; }
+.brand .sub { font-family: var(--f-data); font-size: 10px; color: var(--dim); letter-spacing: .08em; }
+.example { font-family: var(--f-data); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 50%, transparent); padding: 2px 6px; border-radius: 3px; }
+.stats { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+.stat { display: grid; }
+.stat b { font-family: var(--f-data); font-weight: 600; font-size: 15px; }
+.stat span { font-size: 10px; color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+.btn:hover { border-color: var(--target); }
+.btn kbd, .hint kbd { font-family: var(--f-data); font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+.btn.on { border-color: var(--amber); color: var(--amber); }
+.btn.primary { background: var(--target); color: var(--scope); border-color: var(--target); font-weight: 600; }
+.btn.primary kbd { color: var(--scope); border-color: color-mix(in srgb, var(--scope) 40%, transparent); }
+.btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+/* Main */
+.main { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 12px; min-height: 0; }
+.scope { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--scope); }
+.scope canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.scope.sterile canvas { filter: saturate(.35) brightness(.75); }
+.banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-family: var(--f-data); font-size: 11px; letter-spacing: .12em; color: var(--amber); background: color-mix(in srgb, var(--scope) 85%, transparent); border: 1px solid var(--amber); padding: 4px 10px; border-radius: 3px; white-space: nowrap; }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--f-data); font-size: 9.5px; color: var(--dim); max-width: calc(100% - 20px); }
+.legend i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
+.toast { position: absolute; top: 44px; right: 10px; max-width: min(340px, calc(100% - 20px)); background: var(--raised); border: 1px solid var(--target); border-left-width: 4px; padding: 8px 12px; border-radius: 4px; font-size: 13px; box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
+.toast.p0 { border-color: var(--red); }
+.toast b { font-family: var(--f-data); font-size: 11px; display: block; margin-bottom: 2px; letter-spacing: .06em; }
+
+/* Strip board */
+.side { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; min-height: 0; }
+.board { overflow: auto; min-height: 0; display: grid; gap: 12px; align-content: start; padding-right: 2px; }
+.bay h2 { margin: 0 0 6px; display: flex; align-items: baseline; gap: 8px; font-family: var(--f-display); font-weight: 500; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+.bay h2 b { color: var(--fg); font-family: var(--f-data); font-size: 11px; }
+.bay h2 small { font-family: var(--f-body); letter-spacing: 0; text-transform: none; font-size: 12px; }
+.bay .empty { font-size: 12px; color: var(--dim); padding: 4px 0 2px; }
+.strips { display: grid; gap: 4px; }
+.strip { display: grid; grid-template-columns: 74px minmax(0, 1fr) 58px; color: var(--ink); background: var(--paper-buff); border-radius: 2px; cursor: pointer; border: 2px solid transparent; box-shadow: 0 1px 0 rgb(0 0 0 / .35); transition: transform .15s; }
+.strip > div { padding: 5px 8px; min-width: 0; }
+.strip > div + div { border-left: 1px solid rgb(0 0 0 / .18); }
+.strip.air { background: var(--paper-blue); }
+.strip.hold { background: var(--paper-pink); }
+.strip.mayday { background: var(--paper-red); transform: rotate(-1.4deg); margin-block: 3px; }
+.strip.landed { background: var(--paper-grey); }
+.strip.urgent { transform: rotate(-1.4deg); margin-block: 3px; }
+.strip[aria-selected="true"] { border-color: var(--target); box-shadow: 0 0 0 1px var(--target), 0 4px 14px rgb(0 0 0 / .4); }
+.s-cs b { font-family: var(--f-data); font-weight: 600; font-size: 12px; display: block; }
+.s-cs span { font-family: var(--f-data); font-size: 9px; color: var(--ink-dim); }
+.s-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-step { font-size: 12px; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-time { text-align: right; font-family: var(--f-data); font-size: 12px; font-variant-numeric: tabular-nums; }
+.s-time small { display: block; font-family: var(--f-body); font-size: 10px; color: var(--ink-dim); }
+
+/* Console */
+.console { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; max-height: 46vh; overflow: auto; display: grid; gap: 10px; align-content: start; }
+.c-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.c-head h3 { margin: 0; font-family: var(--f-data); font-weight: 600; font-size: 15px; }
+.c-head span { color: var(--dim); }
+.pill { font-family: var(--f-data); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; border: 1px solid currentColor; }
+.pill.turn { color: var(--amber); } .pill.air { color: var(--target); } .pill.hold { color: var(--pink); } .pill.mayday { color: var(--red); } .pill.landed { color: var(--dim); }
+.pipe { display: flex; flex-wrap: wrap; gap: 4px; }
+.pipe span { font-size: 11px; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--dim); }
+.pipe span.done { color: var(--fg); background: var(--raised); text-decoration: line-through; text-decoration-color: var(--dim); }
+.pipe span.now { color: var(--scope); background: var(--target); border-color: var(--target); }
+.pipe span.now.me { background: var(--amber); border-color: var(--amber); }
+.pipe em { font-style: normal; font-family: var(--f-data); font-size: 8.5px; margin-right: 4px; opacity: .8; }
+.c-text { margin: 0; line-height: 1.45; max-width: 65ch; }
+.c-label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.check { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.check li { display: flex; gap: 8px; font-size: 13px; }
+.check li.d { color: var(--dim); text-decoration: line-through; }
+.check li::before { content: "□"; font-family: var(--f-data); }
+.check li.d::before { content: "■"; color: var(--target); }
+.cmds { display: grid; gap: 4px; }
+.cmd { display: flex; gap: 8px; align-items: center; background: var(--scope); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; font-family: var(--f-data); font-size: 11px; min-width: 0; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; }
+.cmd button { background: none; border: 1px solid var(--line); border-radius: 3px; font-size: 10px; padding: 2px 6px; cursor: pointer; color: var(--dim); }
+.cmd button:hover { color: var(--target); border-color: var(--target); }
+.finding { border-left: 2px solid var(--target); padding-left: 10px; display: grid; gap: 3px; }
+.finding p { margin: 0; }
+.finding code { font-family: var(--f-data); font-size: 10.5px; color: var(--dim); overflow-wrap: anywhere; }
+.quote { margin: 0; padding: 8px 10px; background: var(--scope); border-radius: 4px; border: 1px dashed var(--line); font-size: 13px; }
+.quote small { display: block; color: var(--dim); font-family: var(--f-data); font-size: 10px; margin-bottom: 3px; }
+textarea { width: 100%; min-height: 64px; resize: vertical; background: var(--scope); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; font: inherit; font-size: 13px; }
+.fuel { height: 6px; background: var(--scope); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.fuel i { display: block; height: 100%; background: var(--target); }
+.fuel.low i { background: var(--amber); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.warn { color: var(--red); font-size: 13px; margin: 0; }
+
+/* Radio log */
+.log { display: flex; gap: 14px; align-items: baseline; font-family: var(--f-data); font-size: 11px; color: var(--dim); overflow: hidden; white-space: nowrap; min-width: 0; }
+.log b { color: var(--fg); font-weight: 400; }
+.log .tag { color: var(--target); letter-spacing: .12em; flex: none; }
+.log span { overflow: hidden; text-overflow: ellipsis; }
+.hint { font-size: 11px; color: var(--dim); display: flex; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-rows: auto auto auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .scope { aspect-ratio: 1; max-height: 92vw; }
+  .console { max-height: none; }
+  .stats { margin-left: 0; }
+  .log { white-space: normal; flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) { .strip { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>DAYCARE</h1><span class="sub">LOCAL · 6 WORKERS · <span id="clock">--:--:--</span></span></div>
+    <span class="example" title="This prototype runs on made-up items, not your real workspace">Example data</span>
+    <div class="stats">
+      <div class="stat"><b id="st-turn">0</b><span>On you</span></div>
+      <div class="stat"><b id="st-oldest">–</b><span>Oldest wait</span></div>
+      <div class="stat"><b id="st-landed">3</b><span>Landed today</span></div>
+      <div class="stat"><b id="st-spend">$0.00</b><span>Agent spend</span></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="b-drop" type="button">Drop screenshot <kbd>⌃⌥T</kbd></button>
+      <button class="btn" id="b-focus" type="button" aria-pressed="false">Sterile cockpit <kbd>F</kbd></button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="scope" id="scope" aria-label="Radar scope of all work items">
+      <canvas id="cv"></canvas>
+      <div class="banner" id="banner" hidden></div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="legend">
+        <span><i style="background:var(--target);border-radius:50%"></i>agent working</span>
+        <span><i style="background:var(--amber);transform:rotate(45deg)"></i>your turn (on final)</span>
+        <span><i style="background:var(--pink)"></i>message in hold</span>
+        <span><i style="background:var(--red)"></i>mayday</span>
+        <span><i style="border:1px solid var(--dim)"></i>landed, unreviewed</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="board" id="board" aria-label="Flight strip board"></div>
+      <div class="console" id="console" aria-live="polite"></div>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="log" id="log"><span class="tag">FREQ</span></div>
+    <div class="hint"><span><kbd>↑</kbd><kbd>↓</kbd> select</span><span><kbd>⏎</kbd> clear / approve</span><span><kbd>R</kbd> resume</span><span><kbd>X</kbd> kill</span><span><kbd>F</kbd> sterile cockpit</span><span><kbd>T</kbd> drop screenshot</span></div>
+  </footer>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const col = {};
+for (const k of ["scope", "grid", "line", "fg", "dim", "target", "amber", "red", "pink"]) col[k] = getComputedStyle(document.documentElement).getPropertyValue("--" + k).trim();
+
+const A = "agent", M = "me";
+const uuid = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+
+/* ---------- Example workspace ---------- */
+let items = [
+  { id: "auth", cs: "AUTH-RF", title: "auth-refactor", worker: "claude", repo: "api", bay: "turn", idx: 1, age: 12,
+    pipe: [{ n: "Refactor src/db", o: A }, { n: "Review agent diff", o: M }, { n: "Deploy to QA", o: M }, { n: "Ship", o: M }],
+    note: "Claude finished the refactor of src/db/. Test suite: 214 passed, 0 failed. 9 files changed, +312 −198.",
+    resume: "You were reading the token-rotation change in src/auth.ts around line 42. Next: run npm test auth, then approve the diff." },
+  { id: "chk", cs: "CHKOUT", title: "checkout-bug", worker: "me", repo: "web", bay: "turn", idx: 2, age: 124,
+    pipe: [{ n: "Write fix", o: A }, { n: "Deploy to QA", o: M }, { n: "Manual test", o: M }, { n: "QA report", o: A }, { n: "Ship", o: M }],
+    checklist: [{ t: "Log in as the test user", d: true }, { t: "Upload the sample CSV", d: true }, { t: "Click through checkout", d: false }, { t: "Verify the confirmation email fires", d: false }],
+    resume: "QA env is deployed at qa-3. Two of four checks done. You stopped before clicking through checkout." },
+  { id: "mig", cs: "MIG-DB", title: "migrate-db", worker: "claude", repo: "api", bay: "air", idx: 1, p: .35, rate: .010, spent: .84, budget: 3, age: 12,
+    pipe: [{ n: "Write migration", o: A }, { n: "Write tests", o: A }, { n: "Review", o: M }, { n: "Run on staging", o: M }], files: ["src/db/schema.ts", "src/db/migrations/0042.ts"] },
+  { id: "bil", cs: "BILLING", title: "billing-rounding", worker: "cursor", repo: "api", bay: "air", idx: 0, p: .5, rate: .004, age: 31,
+    pipe: [{ n: "Fix rounding", o: A }, { n: "Review", o: M }], files: ["src/db/schema.ts", "src/billing/round.ts"] },
+  { id: "sec", cs: "SEC-AUD", title: "security-audit", worker: "internal bot", repo: "api", bay: "air", idx: 0, p: .72, rate: .028, age: 6,
+    pipe: [{ n: "Dependency scan", o: A }, { n: "Read report", o: M }], files: [],
+    note: "Scan complete: 0 critical, 0 high, 2 low (dev dependencies only)." },
+  { id: "flk", cs: "FLAKY", title: "flaky-ci", worker: "claude", repo: "web", bay: "air", idx: 0, p: .28, rate: .016, spent: .41, budget: 2, age: 9, loopAt: .56,
+    pipe: [{ n: "Investigate flaky test", o: A }, { n: "Review fix", o: M }], files: ["test/e2e/cart.spec.ts"] },
+  { id: "prc", cs: "PRICING", title: "pricing-report", worker: "claude", repo: "analytics", bay: "mayday", idx: 0, age: 8, spent: .22, budget: 1,
+    pipe: [{ n: "Build report", o: A }, { n: "Read report", o: M }],
+    reason: "StopFailure: rate_limit", evidence: "Run file: is_error true, subtype error_during_execution, api_error_status 429." },
+  { id: "nav", cs: "NAV-RD", title: "nav-redesign", worker: "claude", repo: "web", bay: "landed", idx: 4, age: 4320,
+    pipe: [{ n: "Build nav", o: A }, { n: "Review", o: M }, { n: "QA", o: M }, { n: "Ship", o: M }],
+    note: "Shipped 3 days ago. You never marked it reviewed." },
+  { id: "p12", cs: "#12", title: "Dave: is the Auth API ok?", worker: "triage", bay: "hold", idx: 2, age: 18, urg: "P2", triage: true,
+    pipe: [{ n: "Transcribe", o: A }, { n: "Pre-investigate", o: A }, { n: "Review & send", o: M }],
+    msg: { from: "Dave", where: "screenshot 14:52 · Slack DM", text: "hey is the Auth API ok? seeing some slow logins" },
+    findings: [{ c: "auth-api logged 0 errors in the last hour.", cmd: "docker logs auth-api --since 1h | grep -c ERROR", out: "0" },
+               { c: "p95 login latency is 340ms, normal for this time of day.", cmd: "kubectl top pod -l app=auth-api", out: "cpu 41% · mem 58%" }],
+    draft: "Auth API looks healthy from here: no errors in the last hour and login latency is normal. Is it one account or everyone? Happy to look at a specific user." },
+  { id: "p13", cs: "#13", title: "GitHub: review requested on #482", worker: "triage", bay: "hold", idx: 2, age: 41, urg: "P2", triage: true,
+    pipe: [{ n: "Fetch", o: A }, { n: "Pre-investigate", o: A }, { n: "Review & send", o: M }],
+    msg: { from: "marco-l", where: "GitHub notification", text: "Requested your review on #482: Round invoice totals at line level" },
+    findings: [{ c: "#482 changes 3 files, all in src/billing/. CI is green.", cmd: "gh pr view 482 --json files,statusCheckRollup", out: "3 files · 4/4 checks passed" },
+               { c: "It touches src/billing/round.ts, which BILLING (Cursor) is also changing.", cmd: "git diff --name-only main...cs/billing-rounding", out: "src/billing/round.ts" }],
+    draft: "Looking at this today. Heads-up: I have a branch touching src/billing/round.ts too, so we should agree on which rounding lands first." },
+];
+for (const it of items) { it.ang = Math.random() * Math.PI * 2; it.sid = it.worker === "claude" ? uuid() : null; }
+
+const arrivals = [
+  { from: "Marco", where: "screenshot · Teams", text: "can you look at my PR when you get a chance, no rush", urg: "P2",
+    findings: [{ c: "PR #485 is a 12-line docs change. CI is green.", cmd: "gh pr view 485 --json additions,deletions,statusCheckRollup", out: "+12 −3 · 3/3 checks passed" }],
+    draft: "Will take a look this afternoon." },
+  { from: "Priya", where: "screenshot · Slack #incidents", text: "checkout is throwing 500s for everyone??", urg: "P0",
+    findings: [{ c: "checkout-api returned 412 responses with status 500 in the last 10 minutes.", cmd: "kubectl logs deploy/checkout-api --since=10m | grep -c ' 500 '", out: "412" },
+               { c: "Errors started at 15:02, two minutes after deploy web@a91c3.", cmd: "gh run list -w deploy --limit 1", out: "a91c3 · completed 15:00" }],
+    draft: "Seeing it too: checkout-api has been returning 500s since 15:02, right after the a91c3 deploy. Rolling back now, will update here." },
+  { from: "#deploys", where: "screenshot · Slack", text: "staging deploy of billing-svc failed", urg: "P1",
+    findings: [{ c: "The staging deploy failed on a missing env var BILLING_REGION.", cmd: "gh run view 88213 --log-failed", out: "Error: BILLING_REGION is not set" }],
+    draft: "That's the new BILLING_REGION var from my migration. Adding it to staging config now." },
+];
+let nextPing = 14;
+
+/* ---------- State ---------- */
+let sel = "chk";
+let landedToday = 3;
+let sterileUntil = 0;
+let held = 0;
+let simT = 0;
+const log = [];
+
+const ORDER = ["mayday", "turn", "hold", "air", "landed"];
+const BAYS = {
+  mayday: ["Mayday", "needs you to sort out"],
+  turn: ["On final", "your turn"],
+  hold: ["Holding", "messages, pre-checked"],
+  air: ["Airborne", "agents working"],
+  landed: ["Landed", "done, not reviewed"],
+};
+const step = (it) => it.pipe[Math.min(it.idx, it.pipe.length - 1)];
+const fmtAge = (m) => m < 1 ? "now" : m < 60 ? `${Math.floor(m)}m` : m < 1440 ? `${Math.floor(m / 60)}h${String(Math.floor(m % 60)).padStart(2, "0")}` : `${Math.floor(m / 1440)}d`;
+const byId = (id) => items.find((i) => i.id === id);
+const ordered = () => ORDER.flatMap((b) => items.filter((i) => i.bay === b).sort((x, y) => b === "turn" || b === "hold" ? urgRank(x) - urgRank(y) || y.age - x.age : y.age - x.age));
+const urgRank = (i) => ({ P0: 0, P1: 1, P2: 2 }[i.urg] ?? 3);
+
+function say(text) {
+  const d = new Date();
+  log.unshift({ t: d.toTimeString().slice(0, 5), text });
+  log.length = Math.min(log.length, 8);
+  renderLog();
+}
+
+let toastTimer;
+function toast(title, body, p0) {
+  const el = $("#toast");
+  el.className = "toast" + (p0 ? " p0" : "");
+  el.innerHTML = `<b>${esc(title)}</b>${esc(body)}`;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, p0 ? 9000 : 5000);
+}
+function notify(title, body, urgent) {
+  if (sterileUntil && !urgent) { held++; renderHeader(); return; }
+  toast(title, body, urgent);
+}
+
+/* ---------- Transitions ---------- */
+function enter(it) {
+  if (it.idx >= it.pipe.length) {
+    if (it.triage) { items = items.filter((x) => x !== it); say(`${it.cs} cleared. Reply sent by you.`); if (sel === it.id) sel = ordered()[0]?.id; return; }
+    it.bay = "landed"; it.age = 0; say(`${it.cs} landed. All steps done, waiting for your review.`); return;
+  }
+  const s = step(it);
+  it.age = 0;
+  if (s.o === A) {
+    it.bay = "air"; it.p = 0; it.rate = it.triage ? (it.idx === 0 ? .12 : .06) : .012; it.ang = Math.random() * Math.PI * 2;
+    if (it.worker === "claude" && !it.sid) it.sid = uuid();
+    say(`${it.cs} cleared for takeoff: ${s.n}.`);
+  } else {
+    it.bay = it.triage ? "hold" : "turn";
+    const urgent = it.urg === "P0";
+    say(it.triage ? `${it.cs} ${it.urg} in hold: ${it.msg.from}. Findings ready.` : `${it.cs} on final. Your turn: ${s.n}.`);
+    notify(it.triage ? `${it.cs} · ${it.urg} · ${it.msg.from}` : `${it.cs} · your turn`, it.triage ? it.findings[0].c : s.n, urgent);
+  }
+}
+function advance(it) { it.idx++; enter(it); }
+
+function primary(it) {
+  if (!it) return;
+  if (it.bay === "turn") {
+    const next = it.checklist?.find((c) => !c.d);
+    if (next && step(it).n === "Manual test") { next.d = true; say(`${it.cs} check done: ${next.t}.`); }
+    else { say(`${it.cs} ${step(it).n} approved by you.`); advance(it); }
+  } else if (it.bay === "hold") {
+    const ta = document.getElementById("draft-" + it.id);
+    copy(ta ? ta.value : it.draft);
+    toast(`${it.cs} reply copied`, "Paste it where the message came from. Daycare never sends.");
+    advance(it);
+  } else if (it.bay === "landed") {
+    items = items.filter((x) => x !== it); landedToday++;
+    say(`${it.cs} marked reviewed. Off the board.`); sel = ordered()[0]?.id;
+  } else if (it.bay === "mayday") {
+    retry(it);
+  }
+  render();
+}
+function retry(it) { it.bay = "air"; it.p = 0; it.reason = null; it.loopAt = null; it.age = 0; say(`${it.cs} re-dispatched with claude --resume.`); render(); }
+function kill(it) {
+  if (it?.bay !== "air") return;
+  it.bay = "mayday"; it.reason = "killed_by_user"; it.evidence = "You sent SIGTERM from the console."; it.age = 0;
+  say(`${it.cs} terminated by you.`); render();
+}
+function resolve(it) { it.reason = null; say(`${it.cs} resolved as done by you.`); advance(it); render(); }
+
+function drop() {
+  const a = arrivals.shift();
+  if (!a) { toast("No more example messages", "In the real app, ⌃⌥T captures whatever you drag over."); return; }
+  const it = { id: "p" + nextPing, cs: "#" + nextPing, title: `${a.from}: ${a.text}`, worker: "triage", triage: true, urg: a.urg, idx: 0, age: 0,
+    pipe: [{ n: "Transcribe", o: A }, { n: "Pre-investigate", o: A }, { n: "Review & send", o: M }],
+    msg: { from: a.from, where: a.where, text: a.text }, findings: a.findings, draft: a.draft, ang: -Math.PI / 4 };
+  nextPing++;
+  items.push(it);
+  say(`${it.cs} received from ${a.where}. Transcribing.`);
+  enter(it);
+  render();
+}
+
+/* ---------- Simulation ---------- */
+function tick() {
+  simT++;
+  for (const it of [...items]) {
+    it.age += 1 / 6;
+    if (it.bay !== "air") continue;
+    it.p = Math.min(1, it.p + it.rate);
+    if (it.budget) it.spent = +(it.spent + it.rate * .9).toFixed(3);
+    if (it.loopAt && it.p >= it.loopAt) {
+      it.bay = "mayday"; it.reason = "terminated: loop"; it.loopAt = null; it.age = 0;
+      it.evidence = "PostToolUse saw Bash `npm test -- cart.spec.ts` with identical input 5 times in a row. SIGTERM sent, process gone after 1.2s.";
+      say(`${it.cs} MAYDAY: retry loop detected, worker terminated.`);
+      notify(`${it.cs} · terminated`, "Same tool call 5× in a row.", false);
+      render(); continue;
+    }
+    if (it.p >= 1) { if (it.id === "sec") it.note = "Scan complete: 0 critical, 0 high, 2 low (dev dependencies only)."; advance(it); render(); }
+  }
+  if (sterileUntil && Date.now() >= sterileUntil) endSterile();
+  if (simT === 22 || simT === 70) drop();
+  renderHeader(); updateTimers();
+}
+
+function toggleSterile() {
+  if (sterileUntil) { endSterile(); return; }
+  sterileUntil = Date.now() + 25 * 60 * 1000; held = 0;
+  say("Sterile cockpit on for 25 minutes. Only P0 gets through.");
+  renderHeader();
+}
+function endSterile() {
+  sterileUntil = 0;
+  say("Sterile cockpit off.");
+  if (held) toast("Welcome back", `${held} item${held > 1 ? "s" : ""} came to you while you were heads-down. They're on the board.`);
+  held = 0; renderHeader();
+}
+
+/* ---------- Rendering: header, board, console, log ---------- */
+function renderHeader() {
+  const onYou = items.filter((i) => i.bay === "turn" || i.bay === "hold" || i.bay === "mayday");
+  $("#st-turn").textContent = onYou.length;
+  const oldest = Math.max(0, ...items.filter((i) => i.bay === "turn" || i.bay === "hold").map((i) => i.age));
+  $("#st-oldest").textContent = oldest ? fmtAge(oldest) : "–";
+  $("#st-landed").textContent = landedToday;
+  $("#st-spend").textContent = "$" + items.reduce((s, i) => s + (i.spent || 0), 0).toFixed(2);
+  $("#clock").textContent = new Date().toTimeString().slice(0, 8);
+  const b = $("#b-focus"), banner = $("#banner");
+  b.classList.toggle("on", !!sterileUntil); b.setAttribute("aria-pressed", String(!!sterileUntil));
+  $("#scope").classList.toggle("sterile", !!sterileUntil);
+  if (sterileUntil) {
+    const s = Math.max(0, Math.round((sterileUntil - Date.now()) / 1000));
+    banner.textContent = `STERILE COCKPIT · ${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")} · ${held} HELD`;
+    banner.hidden = false;
+  } else banner.hidden = true;
+}
+
+function stripLine(it) {
+  const s = step(it);
+  if (it.bay === "turn") return `${it.idx + 1}/${it.pipe.length} · ${s.n}${it.checklist && s.n === "Manual test" ? ` · ${it.checklist.filter((c) => c.d).length}/${it.checklist.length} checks` : ""}`;
+  if (it.bay === "air") return `${it.idx + 1}/${it.pipe.length} · ${s.n} · ${Math.round(it.p * 100)}%`;
+  if (it.bay === "hold") return `${it.urg} · ${it.msg.where}`;
+  if (it.bay === "mayday") return it.reason;
+  return `${it.pipe.length}/${it.pipe.length} · all steps done`;
+}
+function stripTimeLabel(it) { return { turn: "on you", hold: "waiting", air: "airborne", mayday: "down", landed: "landed" }[it.bay]; }
+
+function renderBoard() {
+  const html = ORDER.map((b) => {
+    const list = ordered().filter((i) => i.bay === b);
+    if (!list.length && (b === "mayday" || b === "landed")) return "";
+    return `<section class="bay"><h2>${BAYS[b][0]} <b>${list.length}</b> <small>${BAYS[b][1]}</small></h2>
+      <div class="strips">${list.length ? list.map((it) => `
+        <div class="strip ${it.bay}${it.urg === "P0" && it.bay === "hold" ? " urgent" : ""}" role="button" tabindex="0" data-id="${it.id}" aria-selected="${it.id === sel}">
+          <div class="s-cs"><b>${esc(it.cs)}</b><span>${esc(it.worker.toUpperCase())}</span></div>
+          <div><div class="s-title">${esc(it.title)}</div><div class="s-step" data-line="${it.id}">${esc(stripLine(it))}</div></div>
+          <div class="s-time"><span data-age="${it.id}">${fmtAge(it.age)}</span><small>${stripTimeLabel(it)}</small></div>
+        </div>`).join("") : `<div class="empty">${b === "turn" ? "Nothing on you. Go do deep work." : b === "hold" ? "No messages waiting. Press ⌃⌥T on anything that needs a look." : "No agents running."}</div>`}</div></section>`;
+  }).join("");
+  $("#board").innerHTML = html;
+}
+
+function updateTimers() {
+  for (const el of document.querySelectorAll("[data-age]")) { const it = byId(el.dataset.age); if (it) el.textContent = fmtAge(it.age); }
+  for (const el of document.querySelectorAll("[data-line]")) { const it = byId(el.dataset.line); if (it) el.textContent = stripLine(it); }
+  const it = byId(sel);
+  if (it?.bay === "air") {
+    const f = document.getElementById("fuel-" + it.id); if (f && it.budget) { f.style.width = Math.min(100, it.spent / it.budget * 100) + "%"; f.parentElement.classList.toggle("low", it.spent / it.budget > .75); }
+    const ft = document.getElementById("fuelt-" + it.id); if (ft && it.budget) ft.textContent = `$${it.spent.toFixed(2)} of $${it.budget.toFixed(2)}`;
+    const pt = document.getElementById("prog-" + it.id); if (pt) pt.textContent = Math.round(it.p * 100) + "%";
+  }
+}
+
+function conflictsFor(it) {
+  if (it.bay !== "air" || !it.files) return [];
+  return items.filter((o) => o !== it && o.bay === "air" && o.files).flatMap((o) => it.files.filter((f) => o.files.includes(f)).map((f) => ({ o, f })));
+}
+
+function cmdRow(c) { return `<div class="cmd"><code>${esc(c)}</code><button type="button" data-copy="${esc(c)}">Copy</button></div>`; }
+function resumeCmds(it) {
+  const dir = `cd ~/work/${it.repo}/.worktrees/cs-${it.title}`;
+  const out = [dir];
+  if (it.sid) out.push(`claude --resume ${it.sid}`);
+  if (it.id === "auth") out.push("cursor -g src/auth.ts:42");
+  return out;
+}
+
+function renderConsole() {
+  const it = byId(sel);
+  const el = $("#console");
+  if (!it) { el.innerHTML = `<p class="c-text">Board is clear. Select a strip or a target on the scope.</p>`; return; }
+  const s = step(it);
+  const pipe = it.pipe.map((p, i) => `<span class="${i < it.idx ? "done" : i === it.idx && it.bay !== "landed" ? "now" + (p.o === M ? " me" : "") : ""}"><em>${p.o === M ? "YOU" : "AI"}</em>${esc(p.n)}</span>`).join("");
+  let body = "", acts = "";
+  if (it.bay === "turn") {
+    if (it.note) body += `<p class="c-text">${esc(it.note)}</p>`;
+    if (it.checklist && s.n === "Manual test") body += `<div><div class="c-label">Manual test checklist</div><ul class="check">${it.checklist.map((c) => `<li class="${c.d ? "d" : ""}">${esc(c.t)}</li>`).join("")}</ul></div>`;
+    if (it.resume) body += `<div><div class="c-label">Where you were</div><p class="c-text">${esc(it.resume)}</p></div>`;
+    body += `<div class="cmds">${resumeCmds(it).map(cmdRow).join("")}</div>`;
+    const next = it.checklist?.find((c) => !c.d);
+    acts = `<button class="btn primary" type="button" data-act="primary">${next && s.n === "Manual test" ? "Tick: " + esc(next.t) : "Approve " + esc(s.n.toLowerCase())} <kbd>⏎</kbd></button><button class="btn" type="button" data-act="resume">Copy resume commands <kbd>R</kbd></button>`;
+  } else if (it.bay === "air") {
+    const cf = conflictsFor(it);
+    body += `<p class="c-text">${esc(it.worker === "claude" ? "Claude Code" : it.worker === "cursor" ? "Cursor, in its own worktree" : "Internal bot")} is on <b>${esc(s.n)}</b>, <span id="prog-${it.id}">${Math.round(it.p * 100)}%</span> through the step.</p>`;
+    if (it.budget) body += `<div><div class="c-label">Fuel · <span id="fuelt-${it.id}">$${it.spent.toFixed(2)} of $${it.budget.toFixed(2)}</span></div><div class="fuel${it.spent / it.budget > .75 ? " low" : ""}"><i id="fuel-${it.id}" style="width:${Math.min(100, it.spent / it.budget * 100)}%"></i></div></div>`;
+    if (it.files?.length) body += `<div><div class="c-label">${it.worker === "claude" ? "Locked files" : "Files changed in worktree"}</div><div class="cmds">${it.files.map((f) => `<div class="cmd"><code>${it.worker === "claude" ? "🔒 " : ""}${esc(f)}</code></div>`).join("")}</div></div>`;
+    for (const c of cf) body += `<p class="warn">Conflict alert: ${esc(c.f)} is also being changed by ${esc(c.o.cs)} (${esc(c.o.worker)}). Expect a merge conflict.</p>`;
+    if (it.sid) body += `<div class="cmds">${cmdRow("claude --resume " + it.sid)}</div>`;
+    acts = `<button class="btn danger" type="button" data-act="kill">Kill worker <kbd>X</kbd></button>${it.sid ? `<button class="btn" type="button" data-act="resume">Copy resume command <kbd>R</kbd></button>` : ""}`;
+  } else if (it.bay === "hold") {
+    body += `<blockquote class="quote"><small>${esc(it.msg.from)} · ${esc(it.msg.where)} · transcribed</small>${esc(it.msg.text)}</blockquote>`;
+    body += `<div><div class="c-label">Findings · every claim has its evidence</div><div class="cmds">${it.findings.map((f) => `<div class="finding"><p>${esc(f.c)}</p><code>$ ${esc(f.cmd)}</code><code>→ ${esc(f.out)}</code></div>`).join("")}</div></div>`;
+    body += `<div><label class="c-label" for="draft-${it.id}">Draft reply · edit before copying</label><textarea id="draft-${it.id}">${esc(it.draft)}</textarea></div>`;
+    acts = `<button class="btn primary" type="button" data-act="primary">Copy reply and clear <kbd>⏎</kbd></button>`;
+  } else if (it.bay === "mayday") {
+    body += `<p class="warn">${esc(it.reason)}</p><p class="c-text">${esc(it.evidence || "")}</p>`;
+    if (it.sid) body += `<div class="cmds">${cmdRow("claude --resume " + it.sid)}</div>`;
+    acts = `<button class="btn primary" type="button" data-act="primary">Retry <kbd>⏎</kbd></button><button class="btn" type="button" data-act="resolve">It's actually done</button>`;
+  } else {
+    body += `<p class="c-text">${esc(it.note || "Every step is done. Only you can say it's reviewed.")}</p>`;
+    acts = `<button class="btn primary" type="button" data-act="primary">Mark reviewed <kbd>⏎</kbd></button>`;
+  }
+  el.innerHTML = `<div class="c-head"><h3>${esc(it.cs)}</h3><span>${esc(it.title)}</span><span class="pill ${it.bay}">${BAYS[it.bay][0]}</span></div>
+    <div class="pipe">${pipe}</div>${body}<div class="actions">${acts}</div>`;
+}
+
+function renderLog() {
+  $("#log").innerHTML = `<span class="tag">FREQ</span>` + log.slice(0, 4).map((l, i) => `<span${i ? "" : ""}>${esc(l.t)} ${i === 0 ? `<b>${esc(l.text)}</b>` : esc(l.text)}</span>`).join("");
+}
+
+function render() {
+  if (!byId(sel)) sel = ordered()[0]?.id;
+  renderHeader(); renderBoard(); renderConsole();
+}
+
+/* ---------- Clipboard ---------- */
+function copy(text) {
+  try {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } catch { fallbackCopy(text); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch {} ta.remove();
+}
+
+/* ---------- Radar ---------- */
+const cv = $("#cv"), ctx = cv.getContext("2d");
+let dpr = 1, W = 0, H = 0;
+const hits = [];
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+}
+new ResizeObserver(resize).observe(cv);
+
+function positions(t) {
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 22;
+  const pos = new Map();
+  const turn = ordered().filter((i) => i.bay === "turn");
+  turn.forEach((it, i) => pos.set(it.id, [cx - R * (0.17 + 0.12 * i), cy]));
+  const hold = items.filter((i) => i.bay === "hold");
+  const fx = cx + R * .52, fy = cy - R * .52;
+  hold.forEach((it, i) => {
+    const s = ((reduce ? 0 : t / 9000) + i / Math.max(1, hold.length)) % 1 * Math.PI * 2;
+    pos.set(it.id, [fx + Math.cos(s) * R * .15, fy + Math.sin(s) * R * .07]);
+  });
+  items.filter((i) => i.bay === "mayday").forEach((it, i) => pos.set(it.id, [cx - R * .62 + i * R * .2, cy + R * .58]));
+  items.filter((i) => i.bay === "landed").forEach((it, i) => pos.set(it.id, [cx + R * .06 + i * R * .1, cy + R * .16]));
+  for (const it of items.filter((i) => i.bay === "air")) {
+    if (!reduce) it.ang += 0.0007;
+    const r = R * (0.24 + 0.68 * (1 - it.p));
+    pos.set(it.id, [cx + Math.cos(it.ang) * r, cy + Math.sin(it.ang) * r]);
+  }
+  return { pos, cx, cy, R, fx, fy };
+}
+
+function dataBlock(x, y, lines, color, flip) {
+  ctx.font = `600 10px ${getComputedStyle(document.documentElement).getPropertyValue("--f-data")}`;
+  const dx = flip ? -16 : 16, dy = -14;
+  ctx.strokeStyle = color; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(x + (flip ? -5 : 5), y - 4); ctx.lineTo(x + dx, y + dy + 4); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.textAlign = flip ? "right" : "left";
+  lines.forEach((l, i) => { ctx.fillStyle = i === 0 ? color : col.dim; if (i === 1) ctx.font = `400 9.5px ${getComputedStyle(document.documentElement).getPropertyValue("--f-data")}`; ctx.fillText(l, x + dx + (flip ? -2 : 2), y + dy + i * 12); });
+}
+
+function draw(t) {
+  if (!W) { requestAnimationFrame(draw); return; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = col.scope; ctx.fillRect(0, 0, W, H);
+  const { pos, cx, cy, R, fx, fy } = positions(t);
+  const blink = reduce ? 1 : (Math.floor(t / 450) % 2);
+
+  // range rings and labels
+  ctx.lineWidth = 1; ctx.strokeStyle = col.grid;
+  [.25, .5, .75, 1].forEach((f) => { ctx.beginPath(); ctx.arc(cx, cy, R * f, 0, Math.PI * 2); ctx.stroke(); });
+  ctx.font = `400 9px ${getComputedStyle(document.documentElement).getPropertyValue("--f-data")}`; ctx.fillStyle = col.dim; ctx.textAlign = "left";
+  [["STEP START", 1], ["", .75], ["HALFWAY", .5], ["", .25]].forEach(([l, f]) => l && ctx.fillText(l, cx + 4, cy - R * f + 11));
+  for (let a = 0; a < 360; a += 5) {
+    const rad = a * Math.PI / 180, r1 = R * (a % 30 ? .985 : .955);
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(rad) * r1, cy + Math.sin(rad) * r1); ctx.lineTo(cx + Math.cos(rad) * R, cy + Math.sin(rad) * R); ctx.stroke();
+  }
+
+  // sweep
+  if (!reduce) {
+    const sa = (t / 4200) % 1 * Math.PI * 2;
+    if (ctx.createConicGradient) {
+      const g = ctx.createConicGradient(sa - Math.PI * .5, cx, cy);
+      g.addColorStop(0, "rgba(121,227,210,0)"); g.addColorStop(.42, "rgba(121,227,210,0)"); g.addColorStop(.5, "rgba(121,227,210,.10)");
+      g.addColorStop(.5001, "rgba(121,227,210,0)"); g.addColorStop(1, "rgba(121,227,210,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(121,227,210,.35)"; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(sa) * R, cy + Math.sin(sa) * R); ctx.stroke();
+  }
+
+  // runway (you) and final approach course
+  ctx.setLineDash([3, 5]); ctx.strokeStyle = col.line; ctx.beginPath(); ctx.moveTo(cx - R * .9, cy); ctx.lineTo(cx - R * .1, cy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = col.line; ctx.fillRect(cx - R * .1, cy - 4, R * .22, 8);
+  ctx.fillStyle = col.fg; ctx.font = `700 10px ${getComputedStyle(document.documentElement).getPropertyValue("--f-display")}`; ctx.textAlign = "center";
+  ctx.fillText("YOU", cx + R * .01, cy + 20);
+  ctx.font = `400 9px ${getComputedStyle(document.documentElement).getPropertyValue("--f-data")}`; ctx.fillStyle = col.dim; ctx.textAlign = "left";
+  ctx.fillText("FINAL APPROACH", cx - R * .9, cy - 8);
+
+  // holding fix
+  ctx.setLineDash([2, 4]); ctx.strokeStyle = col.pink; ctx.globalAlpha = .45;
+  ctx.beginPath(); ctx.ellipse(fx, fy, R * .15, R * .07, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.fillStyle = col.pink; ctx.textAlign = "center"; ctx.fillText("HOLD · INBOX", fx, fy - R * .07 - 8);
+
+  // conflict alerts
+  const seen = new Set();
+  for (const it of items.filter((i) => i.bay === "air")) for (const c of conflictsFor(it)) {
+    const key = [it.id, c.o.id].sort().join() + c.f; if (seen.has(key)) continue; seen.add(key);
+    const a = pos.get(it.id), b = pos.get(c.o.id); if (!a || !b) continue;
+    ctx.strokeStyle = col.red; ctx.setLineDash([5, 4]); ctx.globalAlpha = blink ? 1 : .45; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = col.red; ctx.textAlign = "center"; ctx.font = `600 9.5px ${getComputedStyle(document.documentElement).getPropertyValue("--f-data")}`;
+    ctx.fillText("CA " + c.f.split("/").pop(), (a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - 6);
+  }
+
+  // targets
+  hits.length = 0;
+  for (const it of items) {
+    const p = pos.get(it.id); if (!p) continue;
+    const [x, y] = p; const flip = x > cx + R * .45;
+    let c = col.target, lines;
+    ctx.lineWidth = 1.4;
+    if (it.bay === "air") {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (cx - x) * .08, y + (cy - y) * .08); ctx.stroke();
+      lines = [it.cs, `${it.idx + 1}/${it.pipe.length} ${step(it).n.toUpperCase().slice(0, 14)} ${Math.round(it.p * 100)}%`, it.budget ? `$${it.spent.toFixed(2)}/${it.budget.toFixed(2)}` : it.worker.toUpperCase()];
+    } else if (it.bay === "turn") {
+      c = col.amber; ctx.fillStyle = c; ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillRect(-4.5, -4.5, 9, 9); ctx.restore();
+      lines = [it.cs, `YOUR TURN ${it.idx + 1}/${it.pipe.length}`, fmtAge(it.age)];
+    } else if (it.bay === "hold") {
+      c = it.urg === "P0" ? col.red : col.pink; ctx.fillStyle = c;
+      if (it.urg !== "P0" || blink) { ctx.beginPath(); ctx.moveTo(x, y - 5.5); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill(); }
+      lines = [`${it.cs} ${it.urg}`, it.msg.from.toUpperCase()];
+    } else if (it.bay === "mayday") {
+      c = col.red; ctx.fillStyle = c; if (blink) ctx.fillRect(x - 5, y - 5, 10, 10); else { ctx.strokeStyle = c; ctx.strokeRect(x - 5, y - 5, 10, 10); }
+      lines = [it.cs, "7700 " + (it.reason || "").replace("terminated: ", "").replace("StopFailure: ", "").toUpperCase()];
+    } else {
+      c = col.dim; ctx.strokeStyle = c; ctx.strokeRect(x - 4, y - 4, 8, 8);
+      lines = [it.cs, "UNREVIEWED"];
+    }
+    if (it.id === sel) {
+      ctx.strokeStyle = col.fg; ctx.lineWidth = 1; const s = 11;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.moveTo(x + sx * s, y + sy * (s - 5)); ctx.lineTo(x + sx * s, y + sy * s); ctx.lineTo(x + sx * (s - 5), y + sy * s); ctx.stroke(); }
+    }
+    ctx.lineWidth = 1;
+    dataBlock(x, y, lines, c, flip);
+    hits.push({ id: it.id, x, y });
+  }
+  requestAnimationFrame(draw);
+}
+
+/* ---------- Input ---------- */
+function select(id) { sel = id; renderBoard(); renderConsole(); }
+cv.addEventListener("click", (e) => {
+  const r = cv.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
+  let best = null, bd = 22;
+  for (const h of hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h; } }
+  if (best) select(best.id);
+});
+$("#board").addEventListener("click", (e) => { const s = e.target.closest(".strip"); if (s) select(s.dataset.id); });
+$("#board").addEventListener("keydown", (e) => { const s = e.target.closest(".strip"); if (s && (e.key === " ")) { e.preventDefault(); select(s.dataset.id); } });
+$("#console").addEventListener("click", (e) => {
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { copy(cp.dataset.copy); cp.textContent = "Copied"; setTimeout(() => { cp.textContent = "Copy"; }, 1200); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const it = byId(sel);
+  ({ primary, kill, resolve, resume: (i) => { copy(resumeCmds(i).join("\n")); toast(`${i.cs} resume commands copied`, "Paste them into a terminal."); } })[b.dataset.act]?.(it);
+});
+$("#b-drop").addEventListener("click", drop);
+$("#b-focus").addEventListener("click", toggleSterile);
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("textarea, input")) return;
+  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); drop(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const list = ordered(); const i = list.findIndex((x) => x.id === sel);
+  const k = e.key.toLowerCase();
+  if (k === "arrowdown" || k === "j") { e.preventDefault(); select(list[Math.min(list.length - 1, i + 1)]?.id); }
+  else if (k === "arrowup" || k === "k") { e.preventDefault(); select(list[Math.max(0, i - 1)]?.id); }
+  else if (k === "enter") { e.preventDefault(); primary(byId(sel)); }
+  else if (k === "x") kill(byId(sel));
+  else if (k === "r") { const it = byId(sel); if (it) { copy(resumeCmds(it).join("\n")); toast(`${it.cs} resume commands copied`, "Paste them into a terminal."); } }
+  else if (k === "f") toggleSterile();
+  else if (k === "t") drop();
+});
+
+say("Daycare online. 6 workers on frequency.");
+say("FLAKY airborne: Investigate flaky test.");
+render();
+setInterval(tick, 1000);
+requestAnimationFrame(draw);
+})();
+</script>

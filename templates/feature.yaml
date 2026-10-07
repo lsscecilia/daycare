@@ -1,0 +1,21 @@
+# A feature with a manual QA pass. Copy to ~/.daycare/templates/ and edit the checklist.
+name: feature
+steps:
+  - name: write code
+    owner: agent
+    prompt: "Implement: {{title}}. Run the test suite before you finish."
+  - name: review the diff
+    owner: me
+  - name: deploy to QA
+    owner: me
+  - name: manual test
+    owner: me
+    checklist:
+      - log in as the test user
+      - click through the changed flow
+      - check the result looks right
+  - name: write QA report
+    owner: agent
+    prompt: "Write a short QA report for {{title}}: what changed, what was tested, anything risky. Save it as QA-REPORT.md and commit it."
+  - name: ship
+    owner: me

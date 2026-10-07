@@ -1,0 +1,8 @@
+# One job for a helper, then you review it. Used by `daycare run "<prompt>"`.
+name: quick
+steps:
+  - name: work
+    owner: agent
+    prompt: "{{prompt}}"
+  - name: review
+    owner: me

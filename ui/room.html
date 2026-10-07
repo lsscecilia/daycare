@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daycare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* The live room: one desk per helper (any number, wrapping into rows), your desk, the cat, then your cards. */
+:root {
+  --page: #f3efe6; --ink: #2c2a3a; --ink-soft: #6d6880; --card: #fffdf8; --edge: #e2dacb;
+  --wall: #cfe6df; --wall-2: #bcdcd3; --floor: #e2b98a; --floor-2: #d6aa79; --wood-dark: #8a5c38;
+  --ok: #3ccf6e; --you: #f5b83d; --bad: #f05a5a; --idle: #9db4c8; --accent: #6d5ae6;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--f-body); font-size: 15px; }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 14px 16px 40px; display: grid; gap: 14px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.top h1 { font-family: var(--f-display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1; }
+.top .sub { color: var(--ink-soft); font-size: 14px; }
+.top .grow { flex: 1; }
+.conn { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.conn.off { background: var(--bad); }
+.btn { border: 2px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 12px; padding: 7px 14px; font-weight: 800; box-shadow: 0 3px 0 var(--ink); transition: transform .08s, box-shadow .08s; display: inline-flex; align-items: center; gap: 8px; }
+.btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.btn.small { padding: 4px 10px; font-size: 13px; border-radius: 10px; box-shadow: 0 2px 0 var(--ink); }
+.btn.go { background: var(--ok); }
+.btn.on { background: var(--you); }
+.btn.ghost { border-color: var(--edge); box-shadow: 0 2px 0 var(--edge); color: var(--ink-soft); }
+.btn kbd { font-family: var(--f-body); font-size: 11px; font-weight: 700; opacity: .65; }
+
+/* Room */
+.scene { position: relative; border-radius: 22px; border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--ink); overflow: hidden; min-height: 330px;
+  background: linear-gradient(var(--wall) 0 170px, var(--wood-dark) 170px 176px, transparent 176px), repeating-linear-gradient(90deg, var(--floor) 0 80px, var(--floor-2) 80px 82px);
+  padding: 64px 16px 18px; }
+.scene::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 170px; background: repeating-linear-gradient(90deg, transparent 0 52px, var(--wall-2) 52px 54px); opacity: .5; }
+.window { position: absolute; left: 24px; top: 18px; width: 120px; height: 92px; border: 5px solid #fff; border-radius: 10px; background: var(--sky, #9fd6ff); overflow: hidden; }
+.window::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; background: #fff; }
+.sun { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--sun, #ffe27a); right: 14px; top: 14px; }
+.clock { position: absolute; left: 50%; top: 14px; width: 50px; height: 50px; transform: translateX(-50%); }
+.poster { position: absolute; right: 30px; top: 22px; padding: 6px 10px; background: #fff6d9; border: 3px solid var(--ink); border-radius: 6px; transform: rotate(3deg); font-family: var(--f-display); font-weight: 800; font-size: 15px; line-height: 1.05; text-align: center; color: var(--accent); }
+.desks { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; align-items: end; }
+
+.station { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; min-width: 0; }
+.station svg.person { width: 140px; max-width: 100%; height: auto; display: block; overflow: visible; }
+.station:hover .person, .station.sel .person { filter: drop-shadow(0 0 6px rgb(255 255 255 / .95)); }
+.nameplate { margin-top: -6px; background: var(--card); border: 2px solid var(--ink); border-radius: 99px; padding: 0 10px; font-weight: 800; font-size: 13px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.bubble { background: #fff; border: 2px solid var(--ink); border-radius: 14px; padding: 4px 10px; font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center; max-width: 100%; position: relative; margin-bottom: 9px; min-height: 26px; overflow-wrap: anywhere; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 10px; height: 10px; background: #fff; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+.bubble small { display: block; font-weight: 600; color: var(--ink-soft); font-size: 12px; }
+.bubble.conflict { border-color: var(--bad); }
+.plumbob { width: 16px; height: 26px; margin-bottom: 2px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000)); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); animation: bob 2.4s ease-in-out infinite, spin 4s linear infinite; filter: drop-shadow(0 0 4px var(--c)); }
+.st-working { --c: var(--ok); } .st-done { --c: var(--you); } .st-stuck { --c: var(--bad); } .st-idle { --c: var(--idle); }
+@keyframes bob { 50% { translate: 0 -5px; } }
+@keyframes spin { 0% { scale: 1 1; } 50% { scale: .35 1; } 100% { scale: 1 1; } }
+.st-working .arm-l { animation: type .28s ease-in-out infinite alternate; }
+.st-working .arm-r { animation: type .28s ease-in-out .14s infinite alternate; }
+@keyframes type { to { transform: translateY(-3px); } }
+.eyes { animation: blink 4.5s infinite; transform-origin: 60px 50px; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.st-idle .head-g { transform: rotate(10deg); transform-origin: 60px 70px; }
+.st-stuck .logo { animation: flash .5s steps(2) infinite; }
+@keyframes flash { 50% { opacity: .2; } }
+.st-done .paper { animation: wave .9s ease-in-out infinite alternate; transform-origin: 92px 70px; }
+@keyframes wave { to { transform: rotate(-10deg); } }
+.zzz { position: absolute; top: 40%; right: 18%; font-family: var(--f-display); font-weight: 800; color: var(--ink-soft); font-size: 18px; animation: float 2.6s ease-in infinite; pointer-events: none; }
+@keyframes float { from { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } to { transform: translate(14px, -28px); opacity: 0; } }
+.swirl { position: absolute; top: 46%; left: 50%; width: 28px; height: 28px; margin-left: -14px; border: 3px dotted var(--bad); border-radius: 50%; animation: spin2 1.2s linear infinite; pointer-events: none; }
+@keyframes spin2 { to { transform: rotate(360deg); } }
+.mailcell { display: flex; align-items: flex-end; gap: 4px; justify-content: center; }
+.mailbox { width: 62px; position: relative; }
+.mailbox .count { position: absolute; top: -12px; right: -8px; min-width: 22px; height: 22px; border-radius: 99px; background: var(--bad); color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; border: 2px solid var(--ink); }
+.cat { width: 70px; position: relative; }
+.cat .bubble { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.cat .zzz { top: -10px; right: -6px; }
+.cat.busy svg { animation: hop .3s ease-in-out infinite alternate; }
+@keyframes hop { to { transform: translateY(-4px); } }
+.dnd { position: absolute; right: 20px; top: 130px; background: var(--bad); color: #fff; font-weight: 800; font-size: 13px; padding: 3px 8px; border-radius: 6px; border: 2px solid var(--ink); transform: rotate(-4deg); }
+.empty-room { color: var(--ink-soft); font-weight: 700; align-self: end; text-align: center; padding: 20px 10px 40px; background: rgb(255 255 255 / .55); border-radius: 14px; }
+
+.inspect { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; box-shadow: 0 4px 0 var(--ink); }
+.inspect .who { font-family: var(--f-display); font-weight: 800; font-size: 20px; }
+.inspect .meta { color: var(--ink-soft); font-size: 14px; flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.inspect .meter { width: 160px; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+.inspect.hint { box-shadow: none; border-style: dashed; border-color: var(--edge); color: var(--ink-soft); }
+.bar { height: 8px; border-radius: 99px; background: #eee6d8; overflow: hidden; margin-top: 3px; }
+.bar i { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
+
+.desk-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.desk-h h2 { font-family: var(--f-display); font-weight: 800; font-size: 22px; margin: 0; }
+.desk-h p { margin: 0; color: var(--ink-soft); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-top: 10px; }
+.card { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; box-shadow: 0 4px 0 var(--ink); min-width: 0; }
+.card.urgent { border-color: var(--bad); box-shadow: 0 4px 0 var(--bad); }
+.card .kind { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 2px 8px; border-radius: 99px; justify-self: start; }
+.k-review { background: #fff0c9; color: #8a5a00; } .k-test, .k-step { background: #dff3ff; color: #145a86; } .k-msg { background: #f0e8ff; color: #5236b8; } .k-stuck, .k-p0 { background: #ffe0dd; color: #a8231f; } .k-done { background: #e6efe9; color: #2f6b45; }
+.card h3 { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.card p { margin: 0; color: var(--ink-soft); line-height: 1.45; overflow-wrap: anywhere; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.checks input { width: 17px; height: 17px; accent-color: var(--ok); }
+.checks input:checked + span { text-decoration: line-through; color: var(--ink-soft); }
+.quote { margin: 0; padding: 8px 10px; background: #f6f1ff; border-radius: 10px; font-style: italic; overflow-wrap: anywhere; }
+.found { font-size: 13px; display: grid; gap: 2px; }
+code, .found code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.cmd { display: flex; gap: 6px; align-items: center; background: #f4efe4; border-radius: 8px; padding: 4px 8px; min-width: 0; }
+.cmd code { flex: 1; min-width: 0; }
+.cmd button { border: 0; background: none; color: var(--accent); font-weight: 800; font-size: 12px; }
+textarea { width: 100%; min-height: 70px; resize: vertical; border: 2px solid var(--edge); border-radius: 10px; padding: 8px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); }
+details summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
+details[open] summary { margin-bottom: 6px; }
+.empty { padding: 20px; text-align: center; border: 2px dashed var(--edge); border-radius: 16px; color: var(--ink-soft); grid-column: 1 / -1; }
+.toast { position: fixed; left: 16px; bottom: 16px; max-width: min(380px, calc(100% - 32px)); background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 10px 14px; box-shadow: 0 4px 0 var(--ink); z-index: 10; }
+.toast.err { border-color: var(--bad); box-shadow: 0 4px 0 var(--bad); }
+.dropzone { position: fixed; inset: 0; background: rgb(109 90 230 / .15); border: 4px dashed var(--accent); display: grid; place-items: center; font-family: var(--f-display); font-size: 28px; font-weight: 800; color: var(--accent); z-index: 20; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Daycare</h1>
+    <span class="conn" id="conn" title="Live"></span>
+    <span class="sub" id="summary"></span>
+    <span class="grow"></span>
+    <button class="btn" id="b-drop" type="button" title="Paste a screenshot here with ⌘V, drop an image, or press your ⌃⌥T shortcut anywhere">+ Screenshot <kbd>⌘V</kbd></button>
+    <button class="btn" id="b-focus" type="button" aria-pressed="false">Focus</button>
+  </header>
+
+  <div class="scene" id="scene">
+    <div class="window" id="window"><div class="sun"></div></div>
+    <svg class="clock" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#2c2a3a" stroke-width="3"/><line id="hh" x1="20" y1="20" x2="20" y2="11" stroke="#2c2a3a" stroke-width="3" stroke-linecap="round"/><line id="mh" x1="20" y1="20" x2="20" y2="6" stroke="#2c2a3a" stroke-width="2" stroke-linecap="round"/></svg>
+    <div class="poster">ship<br>it!</div>
+    <div class="dnd" id="dnd" hidden>Do not disturb</div>
+    <div class="desks" id="desks"></div>
+  </div>
+
+  <div class="inspect hint" id="inspect">Tap a helper</div>
+
+  <section>
+    <div class="desk-h"><h2>On your desk</h2><p id="desk-sub"></p></div>
+    <div class="cards" id="cards"></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="dropzone" id="dropzone" hidden>Drop the screenshot</div>
+
+<script>
+(() => {
+"use strict";
+const TOKEN = "__DAYCARE_TOKEN__";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* Characters and props (shared with the prototype). */
+const LOOKS = {
+  claude:  { shirt: "#e8875c", skin: "#f2c7a5", hair: "#6b3f2a", style: "short", laptop: "#d9d4cc", logo: "#e8875c" },
+  claude2: { shirt: "#f2a65e", skin: "#c98e6b", hair: "#2f2433", style: "bun", laptop: "#d9d4cc", logo: "#e8875c" },
+  cursor:  { shirt: "#6f8dff", skin: "#8d5a3b", hair: "#1e1b26", style: "cap", laptop: "#3a3d4a", logo: "#9fb3ff" },
+  bot:     { shirt: "#aab7c4", skin: "#cfd8e1", hair: "#7d8b99", style: "bot", laptop: "#3a3d4a", logo: "#7be0c3" },
+  you:     { shirt: "#7cc9a5", skin: "#f5d3b8", hair: "#4a3557", style: "long", laptop: "#d9d4cc", logo: "#7cc9a5" },
+};
+function hair(l) {
+  switch (l.style) {
+    case "short": return `<path d="M40 46 Q42 26 60 26 Q78 26 80 46 Q74 36 60 36 Q46 36 40 46Z" fill="${l.hair}"/>`;
+    case "bun": return `<circle cx="60" cy="24" r="8" fill="${l.hair}"/><path d="M40 48 Q40 28 60 28 Q80 28 80 48 Q72 35 60 36 Q48 35 40 48Z" fill="${l.hair}"/>`;
+    case "cap": return `<path d="M39 44 Q40 26 60 26 Q80 26 81 44Z" fill="#ff7a59"/><rect x="58" y="40" width="30" height="5" rx="2.5" fill="#ff7a59"/>`;
+    case "long": return `<path d="M38 72 Q34 30 60 27 Q86 30 82 72 L76 72 Q78 44 60 38 Q44 44 44 72Z" fill="${l.hair}"/>`;
+    default: return "";
+  }
+}
+function face(state, bot) {
+  const eyes = state === "idle"
+    ? `<path d="M50 51 q3 3 6 0 M64 51 q3 3 6 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    : `<g class="eyes"><circle cx="53" cy="50" r="2.6" fill="#2c2a3a"/><circle cx="67" cy="50" r="2.6" fill="#2c2a3a"/></g>`;
+  const mouth = state === "stuck" ? `<path d="M54 61 q6 -5 12 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    : state === "done" ? `<path d="M53 58 q7 8 14 0 Z" fill="#2c2a3a"/>`
+    : state === "idle" ? `<circle cx="60" cy="60" r="2" fill="#2c2a3a"/>`
+    : `<path d="M54 58 q6 5 12 0" stroke="#2c2a3a" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  const cheeks = bot ? "" : `<circle cx="47" cy="57" r="3.2" fill="#ff9aa2" opacity=".55"/><circle cx="73" cy="57" r="3.2" fill="#ff9aa2" opacity=".55"/>`;
+  const sweat = state === "stuck" ? `<path d="M81 40 q4 7 0 10 q-4 -3 0 -10Z" fill="#7cc7ff"/>` : "";
+  return eyes + mouth + cheeks + sweat;
+}
+function personSVG(look, state, extra = "") {
+  const l = LOOKS[look], bot = l.style === "bot";
+  const head = bot
+    ? `<rect x="40" y="32" width="40" height="36" rx="10" fill="${l.skin}"/><rect x="45" y="39" width="30" height="24" rx="6" fill="#2f3542"/><line x1="60" y1="32" x2="60" y2="22" stroke="${l.hair}" stroke-width="3"/><circle cx="60" cy="20" r="4" fill="#7be0c3"/>`
+      + `<g transform="translate(0 0)">${face(state, true).replace(/#2c2a3a/g, "#7be0c3")}</g>`
+    : `<circle cx="60" cy="50" r="21" fill="${l.skin}"/>${hair(l)}${face(state, false)}`;
+  const paper = state === "done" ? `<g class="paper"><rect x="86" y="44" width="20" height="26" rx="2" fill="#fff" stroke="#2c2a3a" stroke-width="2"/><path d="M90 51h12M90 56h12M90 61h8" stroke="#b9b3a6" stroke-width="2"/><rect x="84" y="66" width="10" height="16" rx="5" fill="${l.skin}" transform="rotate(-25 89 74)"/></g>` : "";
+  const armR = state === "done" ? "" : `<rect class="arm-r" x="80" y="90" width="13" height="9" rx="4.5" fill="${l.skin}"/>`;
+  return `<svg class="person" viewBox="0 0 120 140" aria-hidden="true">
+    <rect x="28" y="42" width="64" height="66" rx="16" fill="#8f7ee6"/>
+    <rect x="37" y="70" width="46" height="42" rx="17" fill="${l.shirt}"/>
+    <g class="head-g">${head}</g>
+    ${paper}
+    <rect class="arm-l" x="27" y="90" width="13" height="9" rx="4.5" fill="${l.skin}"/>${armR}
+    <path d="M36 102 L41 78 L79 78 L84 102Z" fill="${l.laptop}" stroke="#2c2a3a" stroke-width="1.5"/>
+    <circle class="logo" cx="60" cy="90" r="4.5" fill="${state === "stuck" ? "#f05a5a" : l.logo}"/>
+    <rect x="6" y="101" width="108" height="9" rx="3" fill="#a8744a"/>
+    <rect x="12" y="110" width="6" height="28" rx="2" fill="#8a5c38"/><rect x="102" y="110" width="6" height="28" rx="2" fill="#8a5c38"/>
+    ${extra}
+  </svg>`;
+}
+const MUG = `<g><rect x="94" y="90" width="9" height="11" rx="2" fill="#fff" stroke="#2c2a3a" stroke-width="1.5"/><path d="M103 93 q4 2 0 5" stroke="#2c2a3a" stroke-width="1.5" fill="none"/></g>`;
+const HEADPHONES = `<path d="M37 52 Q37 22 60 22 Q83 22 83 52" stroke="#2c2a3a" stroke-width="4" fill="none"/><rect x="33" y="46" width="9" height="14" rx="4" fill="#f05a5a"/><rect x="78" y="46" width="9" height="14" rx="4" fill="#f05a5a"/>`;
+const PAPERS = (n) => Array.from({ length: Math.min(n, 6) }, (_, i) => `<rect x="${12 + (i % 2) * 2}" y="${95 - i * 3}" width="20" height="5" rx="1" fill="${i % 2 ? "#fff6d9" : "#fff"}" stroke="#2c2a3a" stroke-width="1"/>`).join("");
+
+const CAT = (mode) => `<svg viewBox="0 0 80 60" aria-hidden="true">
+  <path d="M62 44 q14 -4 10 -22" stroke="#3b3346" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="44" cy="44" rx="22" ry="13" fill="#3b3346"/>
+  <circle cx="24" cy="30" r="13" fill="#3b3346"/>
+  <path d="M14 22 L15 9 L23 18Z M26 18 L33 9 L35 22Z" fill="#3b3346"/>
+  ${mode === "sleep" ? `<path d="M17 31 q3 2 6 0 M26 31 q3 2 6 0" stroke="#ffd36e" stroke-width="1.6" fill="none"/>` : `<circle cx="19" cy="30" r="2.4" fill="#ffd36e"/><circle cx="29" cy="30" r="2.4" fill="#ffd36e"/>`}
+  <path d="M22 36 q2 2 4 0" stroke="#ff9aa2" stroke-width="1.5" fill="none"/>
+  ${mode === "carry" ? `<rect x="12" y="36" width="16" height="11" rx="1.5" fill="#fff" stroke="#2c2a3a" stroke-width="1.2"/><path d="M12 36 l8 6 l8 -6" stroke="#2c2a3a" stroke-width="1.2" fill="none"/>` : ""}
+  ${mode === "read" ? `<circle cx="8" cy="40" r="6" fill="#cfefff" stroke="#2c2a3a" stroke-width="2"/><line x1="12" y1="45" x2="17" y2="51" stroke="#2c2a3a" stroke-width="3"/>` : ""}
+</svg>`;
+const MAILBOX = `<svg viewBox="0 0 70 110" aria-hidden="true"><rect x="31" y="50" width="8" height="58" fill="#8a5c38"/><rect x="8" y="20" width="54" height="34" rx="16" fill="#6d5ae6" stroke="#2c2a3a" stroke-width="2.5"/><rect x="14" y="34" width="22" height="6" rx="3" fill="#2c2a3a" opacity=".5"/><g><rect x="58" y="6" width="4" height="30" fill="#2c2a3a"/><rect x="58" y="6" width="16" height="10" fill="#f05a5a"/></g></svg>`;
+
+let V = null, sel = null;
+const openDetails = new Set();
+const drafts = {};
+
+function ago(ms) {
+  const m = Math.floor((Date.now() - ms) / 60000);
+  return m < 1 ? "now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(m / 1440)}d`;
+}
+let tt;
+function toast(text, err) {
+  const el = $("#toast"); el.className = "toast" + (err ? " err" : ""); el.textContent = text; el.hidden = false;
+  clearTimeout(tt); tt = setTimeout(() => { el.hidden = true; }, err ? 7000 : 3500);
+}
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json", "x-daycare-token": TOKEN }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ ok: false, error: "No answer from Daycare." }));
+  if (!j.ok) toast(j.error || "That didn't work.", true); else if (j.message) toast(j.message);
+  return j;
+}
+const act = (body) => api("/api/action", body);
+function copy(text) {
+  try { return navigator.clipboard.writeText(text); } catch { return Promise.reject(); }
+}
+
+function sky() {
+  const h = new Date().getHours();
+  const [s, sun] = h < 6 || h >= 20 ? ["#2b2f5c", "#f4f1c9"] : h < 9 ? ["#ffc6a8", "#ffe27a"] : h < 17 ? ["#9fd6ff", "#ffe27a"] : ["#ffb38a", "#ff9a5c"];
+  const w = $("#window"); w.style.setProperty("--sky", s); w.style.setProperty("--sun", sun);
+  const d = new Date();
+  $("#hh").setAttribute("transform", `rotate(${(d.getHours() % 12 + d.getMinutes() / 60) * 30} 20 20)`);
+  $("#mh").setAttribute("transform", `rotate(${d.getMinutes() * 6} 20 20)`);
+}
+
+const VISUAL = { working: "working", waiting: "done", stuck: "stuck", idle: "idle" };
+function helperBubble(h, conflict) {
+  if (conflict) return `both editing ${esc(conflict)}`;
+  if (h.state === "waiting") return `Your turn<small>${esc(h.task)}</small>`;
+  if (h.state === "stuck") return `Help!<small>${esc(h.task)}</small>`;
+  if (h.state === "idle") return "zzz";
+  return `${esc(h.task)}<small>${esc(h.doing || "working")}</small>`;
+}
+
+function renderRoom() {
+  const v = V;
+  const conflictFile = {};
+  for (const c of v.conflicts) { conflictFile[c.a] = c.file.split("/").pop(); conflictFile[c.b] = c.file.split("/").pop(); }
+  const focus = !!v.focus.until;
+  const onDesk = v.cards.length;
+  const youState = focus ? "idle" : onDesk >= 6 ? "stuck" : onDesk >= 3 ? "done" : "working";
+  const left = focus ? Math.max(0, Math.round((v.focus.until - Date.now()) / 1000)) : 0;
+  const youBubble = focus ? `🎧 ${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}` : onDesk ? `${onDesk} to do` : "All clear!";
+  const mail = v.cards.filter((c) => c.kind === "msg").length;
+
+  const cells = [];
+  cells.push(`<div class="mailcell"><div class="mailbox" title="Paste a screenshot (⌘V) to send me a message">${MAILBOX}${mail ? `<span class="count">${mail}</span>` : ""}</div>
+    <div class="cat${v.reading ? " busy" : ""}">${v.reading ? `<div class="bubble">…</div>` : ""}${CAT(v.reading ? "read" : "sleep")}${v.reading ? "" : `<span class="zzz">z</span>`}</div></div>`);
+  cells.push(`<div class="station st-${focus ? "idle" : youState}"><div class="bubble">${youBubble}</div><div class="plumbob"></div>
+    ${personSVG("you", youState === "stuck" ? "stuck" : "working", PAPERS(onDesk) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div></div>`);
+  for (const h of v.helpers) {
+    const vis = VISUAL[h.state];
+    cells.push(`<div class="station st-${vis}${sel === h.id ? " sel" : ""}" data-id="${h.id}" role="button" tabindex="0" aria-label="${esc(h.name)}: ${esc(h.state)}">
+      <div class="bubble${conflictFile[h.id] ? " conflict" : ""}">${helperBubble(h, conflictFile[h.id])}</div><div class="plumbob"></div>
+      ${personSVG(h.look in LOOKS ? h.look : "claude", vis, vis === "working" ? MUG : "")}
+      <div class="nameplate">${esc(h.name)}</div>
+      ${vis === "idle" ? `<span class="zzz">z</span>` : ""}${vis === "stuck" ? `<span class="swirl"></span>` : ""}</div>`);
+  }
+  if (!v.helpers.length) cells.push(`<div class="empty-room">No helpers yet.<br><code>daycare run "…"</code></div>`);
+  $("#desks").innerHTML = cells.join("");
+  $("#dnd").hidden = !focus;
+}
+
+function cmdRows(cmds) {
+  return (cmds || []).map((c) => `<div class="cmd"><code>${esc(c)}</code><button type="button" data-copy="${esc(c)}">Copy</button></div>`).join("");
+}
+function cardHTML(c) {
+  const p0 = c.urgency === "P0";
+  const kinds = { review: ["k-review", "Review"], test: ["k-test", "Test"], step: ["k-step", "Your step"], msg: [p0 ? "k-p0" : "k-msg", c.failed ? "Message" : p0 ? "Urgent" : c.urgency || "Message"], stuck: ["k-stuck", "Stuck"], done: ["k-done", "Done"] };
+  const [kc, kl] = kinds[c.kind];
+  const det = (body) => `<details data-key="${esc(c.key)}"${openDetails.has(c.key) ? " open" : ""}><summary>Details</summary><div class="checks">${body}</div></details>`;
+  let inner = "";
+  if (c.kind === "review") inner = `${c.changes ? `<p>${esc(c.changes)}</p>` : ""}${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
+    <div class="row"><button class="btn small go" data-a="approve">Looks good</button></div>`;
+  if (c.kind === "step") inner = `<p>${esc(c.sub)}</p><div class="row"><button class="btn small go" data-a="approve">Done</button></div>`;
+  if (c.kind === "test") {
+    const all = c.checks.every((x) => x.d);
+    inner = `<p>${esc(c.sub)}</p><ul class="checks">${c.checks.map((x, i) => `<li><label><input type="checkbox" id="${esc(c.key)}-k${i}" data-a="check" data-i="${i}"${x.d ? " checked" : ""}><span>${esc(x.t)}</span></label></li>`).join("")}</ul>
+      ${all ? `<div class="row"><button class="btn small go" data-a="approve">Done</button></div>` : ""}`;
+  }
+  if (c.kind === "msg" && c.failed) inner = `<p>${esc(c.sub)}</p><div class="row"><button class="btn small ghost" data-a="dismiss">Dismiss</button></div>`;
+  else if (c.kind === "msg") inner = `<p>${esc(c.sub)}</p>${det(`<blockquote class="quote">${esc(c.quote)}</blockquote>${(c.findings || []).map((f) => `<div class="found"><span>✓ ${esc(f.claim)}</span><code>$ ${esc(f.command)} → ${esc(f.quote)}</code></div>`).join("")}`)}
+      <textarea id="draft-${esc(c.key)}" aria-label="Reply">${esc(drafts[c.key] ?? c.draft)}</textarea>
+      <div class="row"><button class="btn small go" data-a="reply">Copy reply</button><button class="btn small ghost" data-a="dismiss">Dismiss</button></div>`;
+  if (c.kind === "stuck") inner = `<p>${esc(c.sub)}</p>${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
+    <div class="row"><button class="btn small go" data-a="retry">Retry</button><button class="btn small ghost" data-a="resolve">It's done</button></div>`;
+  if (c.kind === "done") inner = `${c.changes ? `<p>${esc(c.changes)}</p>` : ""}${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
+    <div class="row"><button class="btn small go" data-a="review">✓</button></div>`;
+  return `<article class="card${p0 ? " urgent" : ""}" data-key="${esc(c.key)}"><span class="kind ${kc}">${kl}</span><h3>${esc(c.title)}</h3>${inner}</article>`;
+}
+
+function renderCards() {
+  // Don't redraw while you're typing in a draft.
+  if (document.activeElement && document.activeElement.matches("textarea")) return;
+  $("#cards").innerHTML = V.cards.length ? V.cards.map(cardHTML).join("") : `<div class="empty">All clear ✨</div>`;
+  $("#desk-sub").textContent = `${V.stats.doneToday} done today`;
+}
+
+function renderHeader() {
+  const s = V.stats;
+  $("#summary").textContent = `${s.working}/${s.helpers} working · $${s.spent.toFixed(2)}`;
+  const b = $("#b-focus"), on = !!V.focus.until;
+  b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "End focus" : "Focus";
+}
+
+function renderInspect() {
+  const el = $("#inspect"), h = V.helpers.find((x) => x.id === sel);
+  if (!h) { el.className = "inspect hint"; el.textContent = "Tap a helper"; return; }
+  el.className = "inspect";
+  el.innerHTML = `<span class="who">${esc(h.name)}</span><span class="meta">${esc(h.task)}${h.doing ? ` · ${esc(h.doing)}` : ""} · ${ago(h.since)}${h.files.length ? ` · 🔒 ${h.files.map(esc).join(", ")}` : ""}</span>
+    ${h.budget ? `<div class="meter">⚡ $${(h.budget - (h.spent || 0)).toFixed(2)}<div class="bar"><i style="width:${Math.max(0, 100 - (h.spent || 0) / h.budget * 100)}%"></i></div></div>` : ""}
+    <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small ghost" data-a="hide">Hide</button>`}${h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>`;
+}
+
+function render() { if (!V) return; renderHeader(); renderRoom(); renderCards(); renderInspect(); }
+
+/* Live updates */
+function connect() {
+  const es = new EventSource(`/api/events?token=${encodeURIComponent(TOKEN)}`);
+  es.onmessage = (e) => { V = JSON.parse(e.data); $("#conn").classList.remove("off"); render(); };
+  es.onerror = () => { $("#conn").classList.add("off"); };
+}
+
+/* Input */
+document.addEventListener("click", async (e) => {
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { copy(cp.dataset.copy).then(() => toast("Copied"), () => toast("Couldn't copy. Select the text instead.", true)); return; }
+  const st = e.target.closest(".station[data-id]");
+  if (st) { sel = sel === Number(st.dataset.id) ? null : Number(st.dataset.id); render(); return; }
+  const b = e.target.closest("[data-a]");
+  if (!b || b.dataset.a === "check") return;
+  if (b.closest("#inspect")) { if (sel) await act({ action: b.dataset.a, worker: sel }); return; }
+  const card = b.closest(".card"); const c = card && V.cards.find((x) => x.key === card.dataset.key);
+  if (!c) return;
+  if (c.kind === "msg") {
+    if (b.dataset.a === "reply") {
+      const text = document.getElementById(`draft-${c.key}`)?.value ?? c.draft;
+      try { await copy(text); } catch { toast("Couldn't copy. Select the text instead.", true); return; }
+    }
+    delete drafts[c.key];
+    await act({ action: b.dataset.a, msg: c.msg });
+  } else await act({ action: b.dataset.a, item: c.item });
+});
+document.addEventListener("change", (e) => {
+  if (!e.target.matches("[data-a=check]")) return;
+  const c = V.cards.find((x) => x.key === e.target.closest(".card").dataset.key);
+  act({ action: "check", item: c.item, idx: Number(e.target.dataset.i), done: e.target.checked });
+});
+document.addEventListener("input", (e) => { if (e.target.matches("textarea[id^=draft-]")) drafts[e.target.id.slice(6)] = e.target.value; });
+document.addEventListener("focusout", (e) => { if (e.target.matches("textarea")) setTimeout(render, 0); });
+document.addEventListener("toggle", (e) => { const d = e.target; if (d.matches?.("details[data-key]")) d.open ? openDetails.add(d.dataset.key) : openDetails.delete(d.dataset.key); }, true);
+document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".station[data-id]")) { e.preventDefault(); e.target.click(); } });
+$("#b-focus").addEventListener("click", () => act({ action: "focus", minutes: V && V.focus.until ? 0 : 25 }));
+$("#b-drop").addEventListener("click", () => toast("Paste a screenshot here with ⌘V, drag one in, or use your ⌃⌥T shortcut anywhere."));
+
+/* Screenshots: paste or drop an image anywhere on the page. */
+async function sendImage(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  await api("/api/drop", { png: data });
+}
+document.addEventListener("paste", (e) => {
+  if (e.target.matches?.("textarea, input")) return;
+  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+  if (item) { e.preventDefault(); sendImage(item.getAsFile()); }
+});
+let dragDepth = 0;
+document.addEventListener("dragenter", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { dragDepth++; $("#dropzone").hidden = false; } });
+document.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#dropzone").hidden = true; } });
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; $("#dropzone").hidden = true; sendImage(e.dataTransfer?.files?.[0]); });
+
+sky(); setInterval(sky, 30000);
+setInterval(() => { if (V && V.focus.until) renderRoom(); }, 1000);
+// #once loads a single snapshot without a live connection (used for screenshots and tests).
+if (location.hash === "#once") fetch("/api/state", { headers: { "x-daycare-token": TOKEN } }).then((r) => r.json()).then((v) => { V = v; render(); });
+else connect();
+})();
+</script>
+</body>
+</html>

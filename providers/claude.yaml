@@ -1,0 +1,22 @@
+# Claude Code. Daycare's default provider, and the only one with full governance today,
+# because Daycare installs hooks into Claude Code (locks, loop detection, budget caps).
+name: claude
+label: Claude Code
+
+# ask: text in, text out, no tools. Used for reading messages, triage, notes and briefings.
+ask:
+  argv: [claude, -p, --tools, "", --strict-mcp-config, --model, haiku, --output-format, json]
+  prompt_via: stdin
+  output: { format: json, result: result, error: is_error }
+  timeout_seconds: 120
+
+# work: does a task in a directory. Used by `daycare dispatch`.
+work:
+  argv: [claude, -p, --permission-mode, acceptEdits, --strict-mcp-config,
+         --session-id, "{session}", --max-budget-usd, "{budget}", --output-format, json]
+  prompt_via: stdin
+  output: { format: json, result: result, error: is_error, session: session_id, cost: total_cost_usd, reason: subtype }
+  timeout_seconds: 3600
+  resume: [claude, --resume, "{session}"]
+
+governance: claude-hooks

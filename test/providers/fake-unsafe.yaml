@@ -1,0 +1,13 @@
+name: fake-unsafe
+label: Fake internal AI (tools left on)
+ask:
+  argv: [./../fake-internal-ai, chat, --json]
+  prompt_via: stdin
+  output: { format: json, result: answer }
+  timeout_seconds: 10
+work:
+  argv: [./../fake-internal-ai, agent]
+  prompt_via: stdin
+  output: { format: text }
+  timeout_seconds: 10
+governance: none
