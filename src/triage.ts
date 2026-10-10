@@ -81,6 +81,7 @@ export async function triage(id: number) {
     const env = internalEnv();
     const cwd = config().triage.cwd ?? process.env.HOME ?? "/";
     const text = m.ocr ?? ocr(m.image!);
+    if (!text.trim()) throw new Error("There's no text in that image, so there's nothing to check.");
     run(`UPDATE message SET ocr = ?, sender = NULL, channel = NULL, text = NULL, urgency = NULL, floor = NULL, summary = NULL,
       commands = NULL, findings = NULL, draft = NULL, error = NULL, updated_at = ? WHERE id = ?`, text, now(), id);
     const allow = config().triage.allow.map((a) => JSON.stringify(a)).join(", ");

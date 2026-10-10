@@ -9,6 +9,7 @@ import { completeStep, failStep, getItem, getStep, getWorker, txfx } from "./ite
 import { loadProvider, parseOutput, prepare } from "./provider";
 import { render } from "./templates";
 import { now, sh, workerEnv } from "./util";
+import { today } from "./cost";
 
 const tail = (s: string, n = 600) => (s.length > n ? "…" + s.slice(-n) : s).trim();
 
@@ -82,6 +83,7 @@ export async function runWorker(workerId: number) {
     run("UPDATE worker SET status = 'ended', ended_at = ?, spent = COALESCE(?, spent), session_id = COALESCE(?, session_id) WHERE id = ?",
       now(), parsed.cost ?? null, parsed.session ?? null, w.id);
     run("DELETE FROM lock WHERE worker_id = ?", w.id);
+    if (parsed.cost) run("INSERT OR REPLACE INTO spend (worker_id, day, usd) VALUES (?,?,?)", w.id, today(), parsed.cost);
     if (getStep(s.id)!.status !== "active") return; // resolved by the user meanwhile
     if (cur.kill_reason) failStep(s.id, cur.kill_reason, cur.kill_evidence, fx);
     else if (parsed.isError) failStep(s.id, parsed.reason && parsed.reason !== "success" ? parsed.reason : code === null ? "couldn't start" : `exit ${code}`,

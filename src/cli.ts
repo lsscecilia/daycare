@@ -15,6 +15,7 @@ import { listProviders, loadProvider } from "./provider";
 import { runWorker } from "./runner";
 import { CLAUDE_SETTINGS, daemonUp, hooksSettings, hooksState, installDaemon, installHooks, installOcr, removeDaemon, removeHooks, writeDefaultConfig } from "./setup";
 import { listTemplates } from "./templates";
+import { recordCost } from "./cost";
 import { summarize } from "./summarize";
 import { addMessage, triage, type Message } from "./triage";
 import { ago, copy, internalEnv, notify, now, sh, spawnDetached } from "./util";
@@ -90,7 +91,7 @@ function board() {
   sec("HELPERS", v.helpers.map((h) => {
     const dot = h.state === "working" ? `${C.grn}●${C.r}` : h.state === "waiting" ? `${C.yel}●${C.r}` : h.state === "stuck" ? `${C.red}●${C.r}` : `${C.dim}●${C.r}`;
     const what = h.state === "waiting" ? (h.doing ? `your turn: ${h.doing}` : "your turn") : h.state === "idle" ? "idle" : h.doing ?? "working";
-    const money = h.budget ? ` $${(h.spent ?? 0).toFixed(2)}/${h.budget.toFixed(2)}` : "";
+    const money = h.budget ? ` $${(h.spent ?? 0).toFixed(2)}/${h.budget.toFixed(2)}` : h.spent ? ` ≈$${h.spent.toFixed(2)}` : "";
     const lock = h.files.length ? ` 🔒${h.files.join(",")}` : "";
     return `  ${dot} ${pad(h.name, 10)} ${pad(h.task, 30)} ${pad(what, h.state === "waiting" ? 60 : 22)} ${hint(ago(h.since) + money + lock)}`;
   }));
@@ -124,6 +125,7 @@ async function main() {
     case "__run": return runWorker(Number(args[0]));
     case "__triage": return triage(Number(args[0]));
     case "__summarize": return summarize(Number(args[0]));
+    case "__cost": return recordCost(Number(args[0]));
     case "daemon": return serve();
 
     case "run": {

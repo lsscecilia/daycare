@@ -148,6 +148,7 @@ body.docked .wrap { padding-bottom: 220px; }
 .inspect { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 0 4px; }
 .inspect .who { font-family: var(--f-display); font-weight: 800; font-size: 20px; }
 .inspect .meta { color: var(--ink-soft); font-size: 14px; flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.inspect .cost { color: var(--ink-soft); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .inspect .meter { width: 160px; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
 .hint { border: 2px dashed var(--edge); border-radius: 16px; padding: 12px 14px; color: var(--ink-soft); }
 .bar { height: 8px; border-radius: 99px; background: #eee6d8; overflow: hidden; margin-top: 3px; }
@@ -442,7 +443,8 @@ function renderCards() {
 function renderHeader() {
   const s = V.stats;
   const turn = V.helpers.filter((h) => h.state === "waiting").length;
-  $("#summary").textContent = `${turn ? `👉 ${turn} your turn · ` : ""}${s.working} working · $${s.spent.toFixed(2)}`;
+  $("#summary").textContent = `${turn ? `👉 ${turn} your turn · ` : ""}${s.working} working · $${s.spent.toFixed(2)} today`;
+  $("#summary").title = "Spent today by all sessions, estimated from their token use at API prices. On a Claude subscription it's what the same work would cost on the API, not your bill.";
   const b = $("#b-focus"), on = !!V.focus.until;
   b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "End focus" : "Focus";
 }
@@ -454,6 +456,7 @@ function renderInspect() {
   if (c) { el.innerHTML = `<span class="who">${esc(c.title)}</span><span class="meta">${esc(c.sub || "")}</span>${close}`; return; }
   if (!h) { el.innerHTML = ""; return; }
   el.innerHTML = `<span class="who">${esc(h.name)}</span><span class="meta">${esc(h.task)}${h.doing ? ` · ${esc(h.doing)}` : ""} · ${ago(h.since)}${h.files.length ? ` · 🔒 ${h.files.map(esc).join(", ")}` : ""}</span>
+    ${!h.budget && h.spent ? `<span class="cost" title="Estimated from token use at API prices">≈ $${h.spent.toFixed(2)} so far</span>` : ""}
     ${h.budget ? `<div class="meter">⚡ $${(h.budget - (h.spent || 0)).toFixed(2)}<div class="bar"><i style="width:${Math.max(0, 100 - (h.spent || 0) / h.budget * 100)}%"></i></div></div>` : ""}
     <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small go" data-a="goto">Go to it</button><button class="btn small ghost" data-a="hide">Hide</button>`}${h.kind === "dispatch" && h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>${close}`;
 }
@@ -669,11 +672,14 @@ document.addEventListener("paste", (e) => {
   const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
   if (item) { e.preventDefault(); sendImage(item.getAsFile()); }
 });
-let dragDepth = 0;
-document.addEventListener("dragenter", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { dragDepth++; $("#dropzone").hidden = false; } });
+// Only files dragged in from outside count: dragging an avatar around the page isn't a screenshot.
+let dragDepth = 0, inside = false;
+document.addEventListener("dragstart", () => { inside = true; });
+document.addEventListener("dragend", () => { inside = false; });
+document.addEventListener("dragenter", (e) => { if (!inside && [...(e.dataTransfer?.types || [])].includes("Files")) { dragDepth++; $("#dropzone").hidden = false; } });
 document.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#dropzone").hidden = true; } });
 document.addEventListener("dragover", (e) => e.preventDefault());
-document.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; $("#dropzone").hidden = true; sendImage(e.dataTransfer?.files?.[0]); });
+document.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; $("#dropzone").hidden = true; if (inside) { inside = false; return; } sendImage(e.dataTransfer?.files?.[0]); });
 
 sky(); setInterval(sky, 30000);
 setInterval(() => { if (V && V.focus.until) renderRoom(); }, 1000);

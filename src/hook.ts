@@ -115,6 +115,7 @@ export async function hook(event: string) {
     if (p.agent_id || !p.session_id) return; // subagent events belong to their parent session
     const w = tx(() => ensureWorker(p));
     const t = now();
+    if (p.transcript_path && p.transcript_path !== w.transcript) run("UPDATE worker SET transcript = ? WHERE id = ?", p.transcript_path, w.id);
 
     switch (event) {
       case "UserPromptSubmit": {
@@ -162,13 +163,14 @@ export async function hook(event: string) {
         run("UPDATE worker SET status = 'waiting', doing = ?, said = ?, summary = NULL WHERE id = ?", doing, said, w.id);
         // A long reply gets a short summary for the room, written in the background.
         if (said && needsSummary(said)) spawnDetached(["__summarize", String(w.id)], internalEnv());
+        spawnDetached(["__cost", String(w.id)], internalEnv());
         // Only ping for long turns: a quick back-and-forth means you're already watching.
         const long = w.turn_started_at && t - w.turn_started_at > config().notify_session_after_seconds * 1000;
         if (long || event === "StopFailure") notify(`${basename(w.repo_root ?? "")}: your turn`, doing || w.title || "Claude finished", false);
         break;
       }
       case "SessionEnd": {
-        if (w.kind === "session") run("UPDATE worker SET status = 'ended', ended_at = ? WHERE id = ?", t, w.id);
+        if (w.kind === "session") { run("UPDATE worker SET status = 'ended', ended_at = ? WHERE id = ?", t, w.id); spawnDetached(["__cost", String(w.id)], internalEnv()); }
         run("DELETE FROM lock WHERE worker_id = ?", w.id);
         break;
       }

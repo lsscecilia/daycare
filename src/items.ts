@@ -25,7 +25,7 @@ export type Worker = {
   title: string | null; status: string; doing: string | null; last_sig: string | null; repeat: number; kill_reason: string | null; kill_evidence: string | null;
   spent: number | null; budget: number | null; out_path: string | null; err_path: string | null;
   started_at: number; last_event_at: number | null; turn_started_at: number | null; ended_at: number | null;
-  said: string | null; summary: string | null;
+  said: string | null; summary: string | null; transcript: string | null;
 };
 export type Check = { t: string; d: boolean };
 

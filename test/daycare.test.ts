@@ -190,6 +190,28 @@ describe("typing a reply into a terminal session", () => {
   });
 });
 
+describe("what a session cost", () => {
+  test("each reply is counted once, at its model's price, cache writes and reads included", async () => {
+    const { transcriptCost } = await import("../src/cost");
+    const dir = mkdtempSync(join(tmpdir(), "daycare-cost-"));
+    const usage = { input_tokens: 1000, output_tokens: 1000, cache_read_input_tokens: 1_000_000, cache_creation: { ephemeral_5m_input_tokens: 100_000, ephemeral_1h_input_tokens: 0 } };
+    const line = (id: string, model: string, u = usage) => JSON.stringify({ timestamp: new Date().toISOString(), message: { id, model, usage: u } });
+    // The same reply logged twice (one line per content block), plus one sub-agent reply.
+    writeFileSync(join(dir, "s.jsonl"), [line("a", "claude-opus-5-5"), line("a", "claude-opus-5-5"), JSON.stringify({ type: "user" })].join("\n"));
+    mkdirSync(join(dir, "s", "subagents"), { recursive: true });
+    writeFileSync(join(dir, "s", "subagents", "agent-1.jsonl"), line("b", "claude-haiku-4-5", { input_tokens: 1_000_000, output_tokens: 0 } as any));
+    const { total, byDay } = transcriptCost(join(dir, "s.jsonl"));
+    // Opus 5.5: 1k in × $4 + 1k out × $20 + 1M cache read × $0.20 + 100k 5-min write × $4 × 1.25 = 0.004 + 0.02 + 0.2 + 0.5
+    // Haiku 4.5: 1M in × $1 = 1
+    expect(total).toBeCloseTo(1.724, 6);
+    expect([...byDay.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1.724, 6);
+  });
+  test("fast mode costs double", async () => {
+    const { replyCost } = await import("../src/cost");
+    expect(replyCost("claude-opus-5-5", { input_tokens: 1e6, output_tokens: 0, speed: "fast" })).toBeCloseTo(8, 6);
+  });
+});
+
 describe("the room's command box", () => {
   test("plain text is a job for a helper, kept exactly as typed", async () => {
     const { toArgv } = await import("../src/command");

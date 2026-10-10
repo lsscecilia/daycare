@@ -52,6 +52,11 @@ const MIGRATIONS = [
   ALTER TABLE worker ADD COLUMN said TEXT;
   ALTER TABLE worker ADD COLUMN summary TEXT
   `,
+  // v4: cost. A session's transcript path, and what each worker cost per day (for "$ today").
+  `
+  ALTER TABLE worker ADD COLUMN transcript TEXT;
+  CREATE TABLE spend (worker_id INTEGER NOT NULL, day TEXT NOT NULL, usd REAL NOT NULL, PRIMARY KEY (worker_id, day))
+  `,
 ];
 
 let _db: Database | undefined;

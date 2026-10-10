@@ -9,6 +9,7 @@ import { activeStep, cantTell, checks, getItem, type Item, type Step, type Worke
 import { loadProvider } from "./provider";
 import { reconcile } from "./reconcile";
 import type { Summary } from "./summarize";
+import { today as costDay } from "./cost";
 import type { Finding, Message } from "./triage";
 import { focusUntil } from "./util";
 
@@ -126,7 +127,7 @@ export function view(doReconcile = true): View {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const doneToday = (one<{ n: number }>("SELECT COUNT(*) n FROM item WHERE status = 'done' AND updated_at >= ?", today.getTime())?.n ?? 0)
     + (one<{ n: number }>("SELECT COUNT(*) n FROM message WHERE status = 'done' AND updated_at >= ?", today.getTime())?.n ?? 0);
-  const spent = one<{ s: number }>("SELECT COALESCE(SUM(spent), 0) s FROM worker WHERE started_at >= ?", today.getTime())?.s ?? 0;
+  const spent = one<{ s: number }>("SELECT COALESCE(SUM(usd), 0) s FROM spend WHERE day = ?", costDay())?.s ?? 0;
 
   return {
     focus: { until: focusUntil(), held: Number(kvGet("focus_held") || 0) },

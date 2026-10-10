@@ -2,6 +2,9 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { act, type Action } from "./actions";
+import { recordCost } from "./cost";
+import { all } from "./db";
+import type { Worker } from "./items";
 import { roomHtml } from "./assets";
 import { runCommand } from "./command";
 import { config } from "./config";
@@ -28,6 +31,14 @@ export function serve() {
   const tick = () => { try { reconcile(); } catch (e) { console.error(new Date().toISOString(), "reconcile:", e); } };
   tick();
   setInterval(tick, 5000);
+  // Session costs are recounted after each turn; also now (for sessions from before the daemon
+  // started) and every minute for sessions mid-turn, so a long turn's cost shows as it runs.
+  const recount = (onlyRunning: boolean) => {
+    for (const w of all<Worker>(`SELECT * FROM worker WHERE kind = 'session' AND status ${onlyRunning ? "= 'running'" : "!= 'ended'"}`))
+      try { recordCost(w.id); } catch (e) { console.error("cost:", e); }
+  };
+  recount(false);
+  setInterval(() => recount(true), 60_000);
 
   Bun.serve({
     hostname: "127.0.0.1",
