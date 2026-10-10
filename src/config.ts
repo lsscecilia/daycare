@@ -9,6 +9,7 @@ export type Config = {
   lock_ttl_minutes: number;
   loop_repeat: number;
   notify_session_after_seconds: number;
+  repo_folders: string[];
   triage: { allow: string[][]; cwd?: string; p0_words: string[] };
 };
 
@@ -20,6 +21,7 @@ export const DEFAULTS: Config = {
   lock_ttl_minutes: 30,
   loop_repeat: 5,
   notify_session_after_seconds: 120,
+  repo_folders: ["~/Repository", "~/Projects", "~/Developer", "~/code", "~/src", "~/dev", "~/work", "~/git", "~/GitHub"],
   triage: {
     allow: [
       ["docker", "ps"], ["docker", "logs"],
@@ -44,6 +46,7 @@ worktrees: true           # give each task its own git worktree so helpers don't
 lock_ttl_minutes: 30      # a file lock lapses this long after its holder's last edit
 loop_repeat: 5            # identical tool calls in a row before a helper counts as stuck
 notify_session_after_seconds: 120   # ping you when a Claude session finishes a turn this long
+repo_folders: [~/Repository, ~/Projects, ~/Developer, ~/code]   # where the room's folder picker looks for git repos
 
 triage:
   # Commands Daycare may run to check a message, as argv prefixes. Read-only ones only.

@@ -25,6 +25,7 @@ export type Worker = {
   title: string | null; status: string; doing: string | null; last_sig: string | null; repeat: number; kill_reason: string | null; kill_evidence: string | null;
   spent: number | null; budget: number | null; out_path: string | null; err_path: string | null;
   started_at: number; last_event_at: number | null; turn_started_at: number | null; ended_at: number | null;
+  said: string | null; summary: string | null;
 };
 export type Check = { t: string; d: boolean };
 
@@ -45,7 +46,7 @@ export function txfx<T>(fn: (fx: Fx) => T): T {
   return r;
 }
 
-function log(stepId: number, from: string, to: string, source: string, note?: string) {
+export function log(stepId: number, from: string, to: string, source: string, note?: string) {
   run("INSERT INTO transition (step_id, from_status, to_status, source, note, at) VALUES (?,?,?,?,?,?)", stepId, from, to, source, note ?? null, now());
 }
 
@@ -216,4 +217,28 @@ export function resolveItem(arg?: string, opts: { includeDone?: boolean } = {}):
   if (hits.length && (hits.length === 1 || hits[0].len > hits[1].len)) return hits[0].i;
   if (hits.length) throw new Error(`Several tasks live here: ${hits.map((h) => h.i.slug).join(", ")}. Name one.`);
   throw new Error("Which task? Name one (see `daycare`), or run this inside its repo.");
+}
+
+// Throws a task away. Its worktree and branch go too, but only if they hold nothing:
+// no commits and no uncommitted changes. Otherwise they stay, and the message says where.
+export function discard(it: Item): string {
+  const w = lastHelper(it.id);
+  if (w && w.status !== "ended") {
+    run("UPDATE worker SET kill_reason = COALESCE(kill_reason, 'discarded'), kill_evidence = COALESCE(kill_evidence, 'You discarded the task.') WHERE id = ?", w.id);
+    if (w.child_pid) try { process.kill(w.child_pid, "SIGTERM"); } catch {}
+  }
+  tx(() => {
+    for (const st of all<Step>("SELECT * FROM step WHERE item_id = ? AND status IN ('pending','active','failed','needs_reconcile')", it.id)) {
+      run("UPDATE step SET status = 'cancelled' WHERE id = ?", st.id);
+      log(st.id, st.status, "cancelled", "user", "discarded");
+    }
+    run("UPDATE item SET status = 'cancelled', queued = NULL, updated_at = ? WHERE id = ?", now(), it.id);
+  });
+  if (!it.worktree || !existsSync(it.worktree)) return `${it.slug} discarded.`;
+  const commits = it.base ? Number(sh(["git", "-C", it.worktree, "rev-list", "--count", `${it.base}..HEAD`]).out || 0) : 1;
+  const dirty = sh(["git", "-C", it.worktree, "status", "--porcelain"]).out.trim();
+  if (commits || dirty) return `${it.slug} discarded. Its work is kept in ${it.worktree} (branch ${it.branch}).`;
+  const r = sh(["git", "-C", it.repo, "worktree", "remove", it.worktree], undefined, 30_000);
+  if (r.ok && it.branch) sh(["git", "-C", it.repo, "branch", "-D", it.branch]);
+  return r.ok ? `${it.slug} discarded. It hadn't changed anything, so its worktree is gone too.` : `${it.slug} discarded. Its empty worktree is still at ${it.worktree}.`;
 }

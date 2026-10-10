@@ -4,7 +4,8 @@ A daycare for your AI agents. See what each one is doing and who's waiting on yo
 terminal or in a cozy little room in your browser.
 
 - Every Claude Code session on your Mac shows up by itself: working, or "your turn" with
-  what it needs from you.
+  what it needs from you. A long reply gets a short summary under the helper in the room
+  (a few words, up to three points, and what's next). The full reply stays in its terminal.
 - `daycare run "fix the flaky cart test"` hands a job to a helper. It works in its own git
   worktree, then the task lands on your desk to review. Send it follow-ups in the same
   conversation with `daycare tell`, or by clicking it in the room.

@@ -6,7 +6,8 @@ import { config } from "./config";
 import { one, run, tx } from "./db";
 import type { Worker } from "./items";
 import { P } from "./paths";
-import { ago, alive, gitInfo, lockTtlMs, notify, now, pidStart, sh } from "./util";
+import { needsSummary } from "./summarize";
+import { ago, alive, gitInfo, internalEnv, lockTtlMs, notify, now, pidStart, sh, spawnDetached } from "./util";
 
 const FILE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 
@@ -121,7 +122,7 @@ export async function hook(event: string) {
         // Helpers Daycare started keep their task name.
         const said = String(p.prompt ?? "").split("\n")[0].trim().slice(0, 80);
         const title = w.kind === "dispatch" ? w.title || said : said || w.title;
-        run("UPDATE worker SET status = 'running', turn_started_at = ?, doing = 'thinking', title = ?, repeat = 0, last_sig = NULL WHERE id = ?", t, title, w.id);
+        run("UPDATE worker SET status = 'running', turn_started_at = ?, doing = 'thinking', title = ?, repeat = 0, last_sig = NULL, said = NULL, summary = NULL WHERE id = ?", t, title, w.id);
         break;
       }
       case "PreToolUse": {
@@ -156,8 +157,11 @@ export async function hook(event: string) {
       case "StopFailure": {
         if (w.kind === "dispatch") { run("UPDATE worker SET doing = 'wrapping up' WHERE id = ?", w.id); break; }
         // While waiting, `doing` holds what's needed from you.
-        const doing = event === "StopFailure" ? `error: ${p.error ?? "unknown"}` : brief(String(p.last_assistant_message ?? ""));
-        run("UPDATE worker SET status = 'waiting', doing = ? WHERE id = ?", doing, w.id);
+        const said = event === "StopFailure" ? null : String(p.last_assistant_message ?? "") || null;
+        const doing = event === "StopFailure" ? `error: ${p.error ?? "unknown"}` : brief(said ?? "");
+        run("UPDATE worker SET status = 'waiting', doing = ?, said = ?, summary = NULL WHERE id = ?", doing, said, w.id);
+        // A long reply gets a short summary for the room, written in the background.
+        if (said && needsSummary(said)) spawnDetached(["__summarize", String(w.id)], internalEnv());
         // Only ping for long turns: a quick back-and-forth means you're already watching.
         const long = w.turn_started_at && t - w.turn_started_at > config().notify_session_after_seconds * 1000;
         if (long || event === "StopFailure") notify(`${basename(w.repo_root ?? "")}: your turn`, doing || w.title || "Claude finished", false);

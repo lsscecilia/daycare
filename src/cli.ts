@@ -15,6 +15,7 @@ import { listProviders, loadProvider } from "./provider";
 import { runWorker } from "./runner";
 import { CLAUDE_SETTINGS, daemonUp, hooksSettings, hooksState, installDaemon, installHooks, installOcr, removeDaemon, removeHooks, writeDefaultConfig } from "./setup";
 import { listTemplates } from "./templates";
+import { summarize } from "./summarize";
 import { addMessage, triage, type Message } from "./triage";
 import { ago, copy, internalEnv, notify, now, sh, spawnDetached } from "./util";
 import { view } from "./view";
@@ -33,6 +34,7 @@ const HELP = `daycare: see what your AI helpers are doing and what's waiting on 
   daycare retry <task>            run a stuck step again
   daycare resolve <task>          mark a stuck step as done anyway
   daycare kill <task>             stop a helper
+  daycare discard <task>          throw a task away (its worktree too, if it changed nothing)
   daycare tell <task> "<text>"    send a helper a follow-up (same conversation, same worktree)
 
   daycare snap [-m note]          screenshot a message; Daycare checks it and drafts a reply
@@ -121,6 +123,7 @@ async function main() {
     case "hook": return hook(args[0] ?? "");
     case "__run": return runWorker(Number(args[0]));
     case "__triage": return triage(Number(args[0]));
+    case "__summarize": return summarize(Number(args[0]));
     case "daemon": return serve();
 
     case "run": {
@@ -148,7 +151,7 @@ async function main() {
       showItem(one<Item>("SELECT * FROM item WHERE id = ?", it.id)!);
       return;
     }
-    case "ok": case "approve": case "review": case "retry": case "resolve": case "dispatch":
+    case "ok": case "approve": case "review": case "retry": case "resolve": case "dispatch": case "discard":
       return console.log(act({ action: cmd, item: resolveItem(args[0], { includeDone: cmd === "review" }).slug }));
     case "tell": {
       const item = args.shift();

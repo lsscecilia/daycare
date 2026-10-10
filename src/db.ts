@@ -47,6 +47,11 @@ const MIGRATIONS = [
   ALTER TABLE step ADD COLUMN followup_session TEXT;
   ALTER TABLE item ADD COLUMN queued TEXT
   `,
+  // v3: a hand-started session's last reply (said) and its short summary for the room (JSON).
+  `
+  ALTER TABLE worker ADD COLUMN said TEXT;
+  ALTER TABLE worker ADD COLUMN summary TEXT
+  `,
 ];
 
 let _db: Database | undefined;

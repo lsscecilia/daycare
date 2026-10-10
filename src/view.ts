@@ -1,4 +1,6 @@
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 // One snapshot of everything, shaped for the board (`daycare`) and the room UI.
 import { basename } from "path";
 import { config } from "./config";
@@ -6,6 +8,7 @@ import { all, kvGet, one } from "./db";
 import { activeStep, cantTell, checks, getItem, type Item, type Step, type Worker } from "./items";
 import { loadProvider } from "./provider";
 import { reconcile } from "./reconcile";
+import type { Summary } from "./summarize";
 import type { Finding, Message } from "./triage";
 import { focusUntil } from "./util";
 
@@ -13,6 +16,7 @@ export type Helper = {
   id: number; kind: "dispatch" | "session"; name: string; look: string; state: "working" | "waiting" | "stuck" | "idle";
   task: string; doing: string | null; since: number; spent: number | null; budget: number | null; files: string[]; resume: string | null; item: string | null;
   tell: boolean; queued: string | null; // whether the box can message it; a message waiting for this run to end
+  summary: Summary | null; // a waiting session's last reply, made glanceable; the full reply is in its terminal
 };
 export type Card = {
   key: string; kind: "stuck" | "msg" | "review" | "test" | "step" | "done"; title: string; sub: string | null; at: number;
@@ -24,6 +28,7 @@ export type View = {
   focus: { until: number; held: number }; helpers: Helper[]; conflicts: { a: number; b: number; file: string }[];
   cards: Card[]; reading: number; stats: { working: number; helpers: number; spent: number; doneToday: number };
   repos: string[]; // where you've worked lately, newest first: the room's command box offers these
+  allRepos: string[]; // every git repo in your repo folders, for the folder picker's search
 };
 
 const LOOKS = ["claude2", "cursor", "claude"];
@@ -60,6 +65,7 @@ export function view(doReconcile = true): View {
       spent: w.spent, budget: w.kind === "dispatch" ? w.budget : null,
       files: locks.filter((l) => l.worker_id === w.id).map((l) => basename(l.path)),
       resume: resumeFor(w), item: w.kind === "dispatch" ? w.title : null,
+      summary: state === "waiting" && w.summary ? JSON.parse(w.summary) : null,
       ...(() => { const it = w.kind === "dispatch" && w.item_id ? getItem(w.item_id) : null; return { tell: !!it && !cantTell(it), queued: it?.queued ?? null }; })(),
     };
   });
@@ -127,6 +133,7 @@ export function view(doReconcile = true): View {
     reading: one<{ n: number }>("SELECT COUNT(*) n FROM message WHERE status = 'reading'")?.n ?? 0,
     stats: { working: helpers.filter((h) => h.state === "working").length, helpers: helpers.length, spent, doneToday },
     repos: recentRepos(),
+    allRepos: foundRepos(),
   };
 }
 
@@ -137,4 +144,22 @@ function recentRepos(): string[] {
       UNION ALL SELECT repo r, updated_at t FROM item)
     GROUP BY r ORDER BY MAX(t) DESC LIMIT 20`);
   return rows.map((x) => x.r).filter((r) => !r.includes("/.worktrees/") && existsSync(r)).slice(0, 10);
+}
+
+// Git repos in your repo folders, two levels deep (so ~/Repository/archive/old-thing counts).
+// Scanning takes a moment, and the room asks every second, so it's cached for a minute.
+let found: { at: number; repos: string[] } | null = null;
+function foundRepos(): string[] {
+  if (found && Date.now() - found.at < 60_000) return found.repos;
+  const repos: string[] = [];
+  const dirs = (d: string) => { try { return readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules").map((e) => join(d, e.name)); } catch { return []; } };
+  for (const f of config().repo_folders) {
+    const root = f.replace(/^~(?=\/|$)/, homedir());
+    for (const a of dirs(root)) {
+      if (existsSync(join(a, ".git"))) { repos.push(a); continue; }
+      for (const b of dirs(a)) if (existsSync(join(b, ".git"))) repos.push(b);
+    }
+  }
+  found = { at: Date.now(), repos: [...new Set(repos)].sort((x, y) => basename(x).localeCompare(basename(y), undefined, { sensitivity: "base" })) };
+  return found.repos;
 }

@@ -26,6 +26,13 @@ steps:
     owner: me
     checklist: [log in, click checkout]
 `);
+  // Summaries come from a fake AI that answers with fixed JSON, once the prompt is read.
+  mkdirSync(join(home, "providers"), { recursive: true });
+  writeFileSync(join(home, "providers", "fake-notes.yaml"), `name: fake-notes
+ask:
+  argv: [sh, -c, 'cat >/dev/null; echo "{\\"tldr\\": \\"Fixed login bug\\", \\"points\\": [\\"a\\", \\"b\\", \\"c\\", \\"d\\"], \\"next\\": \\"Push to main?\\"}"']
+`);
+  writeFileSync(join(home, "config.yaml"), "providers:\n  notes: fake-notes\n");
   m = {
     triage: await import("../src/triage"),
     provider: await import("../src/provider"),
@@ -86,6 +93,14 @@ describe("a task with only your steps", () => {
     expect(m.items.createItem({ title: "Checkout bug", template: "manual", repo }).slug).toBe("checkout-bug-2");
   });
 
+  test("a task you don't want is discarded straight off the board", () => {
+    const repo = mkdtempSync(join(tmpdir(), "daycare-repo-"));
+    const it = m.items.createItem({ title: "oops typed in the wrong box", template: "manual", repo });
+    expect(m.actions.act({ action: "discard", item: it.slug })).toMatch(/discarded/);
+    expect(m.view.view(false).cards.find((c) => c.item === it.slug)).toBeUndefined();
+    expect(() => m.actions.act({ action: "discard", item: it.slug })).toThrow(/No task/);
+  });
+
   test("approving something that isn't waiting on you is refused", () => {
     expect(() => m.actions.act({ action: "review", item: "checkout-bug-2" })).toThrow(/isn't finished/);
   });
@@ -128,6 +143,50 @@ describe("what a stopped session needs from you", () => {
     const { brief } = await import("../src/hook");
     expect(brief("Installed with ./install.sh and restarted the daemon. Refresh the tab.")).toBe("Installed with ./install.sh and restarted the daemon.");
     expect(brief("```\ncode\n```")).toBeNull();
+  });
+});
+
+describe("a long reply, summarized for the room", () => {
+  const said = "Done. ".repeat(60) + "Want me to push?";
+  async function waiting() {
+    const { run } = await import("../src/db");
+    const t = Date.now();
+    return Number(run("INSERT INTO worker (kind, session_id, title, status, said, started_at) VALUES ('session', ?, 'x', 'waiting', ?, ?)", `s${t}${Math.random()}`, said, t).lastInsertRowid);
+  }
+  test("only long replies need one", async () => {
+    const { needsSummary } = await import("../src/summarize");
+    expect(needsSummary("Done.")).toBe(false);
+    expect(needsSummary(said)).toBe(true);
+  });
+  test("a few words, at most three points, and what you need to do", async () => {
+    const { summarize } = await import("../src/summarize");
+    const id = await waiting();
+    await summarize(id);
+    const h = m.view.view(false).helpers.find((x) => x.id === id)!;
+    expect(h.summary).toEqual({ tldr: "Fixed login bug", points: ["a", "b", "c"], next: "Push to main?" });
+  });
+  test("dropped if you've already replied", async () => {
+    const { summarize } = await import("../src/summarize");
+    const { one, run } = await import("../src/db");
+    const id = await waiting();
+    const p = summarize(id);
+    run("UPDATE worker SET status = 'running', said = NULL WHERE id = ?", id);
+    await p;
+    expect(one<{ summary: string | null }>("SELECT summary FROM worker WHERE id = ?", id)?.summary).toBeNull();
+  });
+});
+
+describe("typing a reply into a terminal session", () => {
+  const w = (o: object) => ({ kind: "session", status: "waiting", pid: null, pid_started: null, ...o }) as any;
+  test("only on its turn, so Return can't answer a permission question", async () => {
+    const { typeInto } = await import("../src/goto");
+    expect(() => typeInto(w({ status: "running" }), "hi")).toThrow(/busy/);
+    expect(() => typeInto(w({ kind: "dispatch" }), "hi")).toThrow(/through Daycare/);
+    expect(() => typeInto(w({}), "  \n ")).toThrow(/Type something/);
+  });
+  test("never into a terminal whose session is gone", async () => {
+    const { typeInto } = await import("../src/goto");
+    expect(() => typeInto(w({ pid: 999999 }), "hi")).toThrow(/isn't running/);
   });
 });
 

@@ -1,15 +1,16 @@
 // Everything you can do to a task or message. The CLI and the room UI both call these.
 import { kvGet, kvSet, one, run, tx } from "./db";
-import { goTo } from "./goto";
-import { activeStep, checks, completeStep, enterStep, getWorker, resolveItem, startStep, tell, txfx } from "./items";
+import { goTo, typeInto } from "./goto";
+import { activeStep, checks, completeStep, discard, enterStep, getWorker, resolveItem, startStep, tell, txfx } from "./items";
 import { reconcile } from "./reconcile";
 import { now } from "./util";
 
 export type Action =
-  | { action: "ok" | "approve" | "review" | "retry" | "resolve" | "dispatch"; item: string }
+  | { action: "ok" | "approve" | "review" | "retry" | "resolve" | "dispatch" | "discard"; item: string }
   | { action: "check"; item: string; idx: number; done: boolean }
   | { action: "kill" | "hide" | "goto"; worker: number }
   | { action: "tell"; item: string; text: string }
+  | { action: "type"; worker: number; text: string }
   | { action: "reply" | "dismiss"; msg: number }
   | { action: "focus"; minutes: number };
 
@@ -66,6 +67,11 @@ export function act(a: Action): string {
       txfx((fx) => completeStep(s.id, fx, "user"));
       return `${it.slug}: marked "${s.name}" as done.`;
     }
+    case "discard": {
+      const it = resolveItem(a.item);
+      if (it.status !== "active") throw new Error(`${it.slug} is already finished. Use review to clear it.`);
+      return discard(it);
+    }
     case "dispatch": {
       const it = resolveItem(a.item);
       const s = activeStep(it.id);
@@ -87,6 +93,11 @@ export function act(a: Action): string {
       const w = getWorker(a.worker);
       if (!w || w.status === "ended") throw new Error("That session has ended.");
       return goTo(w);
+    }
+    case "type": {
+      const w = getWorker(a.worker);
+      if (!w || w.status === "ended") throw new Error("That session has ended.");
+      return typeInto(w, a.text);
     }
     case "hide": {
       const w = getWorker(a.worker);

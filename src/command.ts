@@ -2,9 +2,10 @@
 // runs that command, from a short list. Setup, uninstall and anything else that changes
 // your machine stay terminal-only.
 import { existsSync, statSync } from "fs";
+import { homedir } from "os";
 import { internalEnv, selfArgv } from "./util";
 
-const ALLOWED = new Set(["run", "new", "ok", "approve", "review", "retry", "resolve", "dispatch", "kill", "tell", "focus", "pause", "resume", "templates"]);
+const ALLOWED = new Set(["run", "new", "ok", "approve", "review", "retry", "resolve", "dispatch", "discard", "kill", "tell", "focus", "pause", "resume", "templates"]);
 
 // Splits like a shell would for quoting only: no variables, globs or pipes.
 export function words(s: string): string[] {
@@ -33,7 +34,8 @@ export function toArgv(text: string): string[] {
 
 export async function runCommand(text: string, repo?: string): Promise<{ ok: boolean; message: string }> {
   const argv = toArgv(text);
-  if (repo && !(existsSync(repo) && statSync(repo).isDirectory())) throw new Error(`${repo} doesn't exist any more.`);
+  if (repo) repo = repo.replace(/^~(?=\/|$)/, homedir());
+  if (repo && !(existsSync(repo) && statSync(repo).isDirectory())) throw new Error(`There's no folder at ${repo}.`);
   const p = Bun.spawn([...selfArgv(), ...argv], { cwd: repo || undefined, env: { ...internalEnv(), NO_COLOR: "1" }, stdout: "pipe", stderr: "pipe", stdin: "ignore", timeout: 60_000 });
   const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
   const code = await p.exited;

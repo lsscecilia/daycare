@@ -28,15 +28,42 @@ button { font: inherit; cursor: pointer; }
 .top h1 { font-family: var(--f-display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1; }
 .top .sub { color: var(--ink-soft); font-size: 14px; }
 .top .grow { flex: 1; }
-.cmdbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
-.cmdbar input, .cmdbar select { font: inherit; font-size: 15px; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; min-width: 0; }
-.cmdbar input { flex: 1 1 260px; }
-.cmdbar select { flex: 0 1 200px; }
-.cmdbar .to { font: inherit; font-size: 14px; font-weight: 800; background: var(--you); color: var(--ink); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cmdbar .to::after { content: "  ×"; color: var(--ink-soft); }
+/* New session: one bar that reads as a sentence. "New session · <what to do> · in <repo> · Start" */
+.cmdbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 14px 0; background: #fff; border: 2px solid var(--ink); border-radius: 16px; padding: 6px 6px 6px 12px; box-shadow: 0 3px 0 var(--ink); }
+.cmdbar .tag { font-family: var(--f-display); font-weight: 800; font-size: 16px; white-space: nowrap; color: var(--accent); }
+.cmdbar input { flex: 1 1 240px; min-width: 0; font: inherit; font-size: 15px; color: var(--ink); background: none; border: 0; padding: 8px 4px; }
+.cmdbar input:focus-visible { outline: none; }
+.cmdbar:focus-within { outline: 3px solid var(--you); outline-offset: 2px; }
+.cmdbar .in { display: flex; align-items: center; gap: 4px; color: var(--ink-soft); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.cmdbar { position: relative; }
+.repo-btn { font: inherit; font-size: 14px; font-weight: 800; color: var(--ink); background: #f4efe4; border: 0; border-radius: 10px; padding: 6px 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-btn.auto { background: #efe9ff; color: var(--accent); }
+.repo-btn:focus-visible { outline: 2px solid var(--accent); }
+.picker { position: absolute; right: 0; top: calc(100% + 8px); z-index: 8; width: min(380px, calc(100vw - 32px)); background: var(--card); border: 2px solid var(--ink); border-radius: 14px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: grid; gap: 6px; }
+.picker input { font: inherit; font-size: 14px; border: 2px solid var(--edge); border-radius: 10px; padding: 7px 10px; background: #fff; color: var(--ink); }
+.picker input:focus-visible { outline: none; border-color: var(--accent); }
+.picker .list { max-height: 320px; overflow-y: auto; display: grid; }
+.picker h4 { margin: 6px 6px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-soft); }
+.picker .opt { text-align: left; border: 0; background: none; border-radius: 8px; padding: 6px 8px; display: grid; color: var(--ink); }
+.picker .opt b { font-weight: 800; font-size: 14px; }
+.picker .opt small { color: var(--ink-soft); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker .opt.on, .picker .opt:hover { background: #f4efe4; }
+.picker .none { padding: 8px; color: var(--ink-soft); font-size: 13px; }
+/* The dock: pinned to the bottom while you've picked a helper. Who it is, and a box to reply. */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; padding: 0 16px 14px; pointer-events: none; }
+.dock-in { pointer-events: auto; max-width: 1148px; margin: 0 auto; background: var(--card); border: 2px solid var(--ink); border-radius: 18px; box-shadow: 0 -4px 24px rgb(44 42 58 / .14), 0 4px 0 var(--ink); padding: 10px 12px; display: grid; gap: 8px; }
+.reply { display: flex; gap: 8px; align-items: flex-end; }
+.reply textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 40vh; resize: none; overflow-y: auto; font-size: 15px; line-height: 1.4; border: 2px solid var(--ink); border-radius: 12px; padding: 9px 12px; }
+.reply textarea:focus-visible { outline: 3px solid var(--you); outline-offset: 1px; }
+.reply textarea:disabled { border-color: var(--edge); background: #faf7f0; }
+.reply .btn { flex: none; height: 44px; }
+.reply-note { font-size: 12px; color: var(--ink-soft); padding: 0 4px; }
+.reply-note kbd { font-family: var(--f-body); font-weight: 800; }
+body.docked .wrap { padding-bottom: 220px; }
+.close-x { border: 0; background: none; font-size: 20px; line-height: 1; color: var(--ink-soft); padding: 2px 6px; }
 .card.tellable { cursor: pointer; }
 .card.sel { outline: 3px solid var(--you); outline-offset: 2px; }
-.cmdbar input:focus-visible, .cmdbar select:focus-visible { outline: 3px solid var(--you); outline-offset: 1px; }
+
 .conn { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
 .conn.off { background: var(--bad); }
 .btn { border: 2px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 12px; padding: 7px 14px; font-weight: 800; box-shadow: 0 3px 0 var(--ink); transition: transform .08s, box-shadow .08s; display: inline-flex; align-items: center; gap: 8px; }
@@ -57,7 +84,7 @@ button { font: inherit; cursor: pointer; }
 .sun { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--sun, #ffe27a); right: 14px; top: 14px; }
 .clock { position: absolute; left: 50%; top: 14px; width: 50px; height: 50px; transform: translateX(-50%); }
 .poster { position: absolute; right: 30px; top: 22px; padding: 6px 10px; background: #fff6d9; border: 3px solid var(--ink); border-radius: 6px; transform: rotate(3deg); font-family: var(--f-display); font-weight: 800; font-size: 15px; line-height: 1.05; text-align: center; color: var(--accent); }
-.desks { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; align-items: end; }
+.desks { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; align-items: start; }
 
 .station { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; min-width: 0; }
 .station svg.person { width: 140px; max-width: 100%; height: auto; display: block; overflow: visible; }
@@ -66,6 +93,28 @@ button { font: inherit; cursor: pointer; }
 .bubble { background: #fff; border: 2px solid var(--ink); border-radius: 14px; padding: 4px 10px; font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center; max-width: 100%; position: relative; margin-bottom: 9px; min-height: 26px; overflow-wrap: anywhere; }
 .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 10px; height: 10px; background: #fff; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
 .bubble small { display: block; font-weight: 600; color: var(--ink-soft); font-size: 12px; }
+/* A desk's bubble sits under its nameplate, pointing up at the helper. */
+.station .bubble { margin: 10px 0 0; width: 100%; }
+.station .bubble::after { top: -8px; bottom: auto; transform: translateX(-50%) rotate(225deg); }
+/* Working and your turn must read differently at a glance: grey and typing vs. yellow and waving. */
+.state { display: flex; align-items: center; justify-content: center; gap: 5px; margin: -1px -4px 4px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.state.working { color: #2f6b45; background: #e3f6e9; }
+.state.turn { color: #6b4500; background: var(--you); }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: dot 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+.st-working[data-id] .bubble { border-style: dashed; border-color: #8fb79d; color: var(--ink-soft); }
+.st-working[data-id] .bubble::after { border-color: #8fb79d; }
+.st-done[data-id] .bubble { background: #fff6dc; border-color: #c98a00; box-shadow: 0 0 0 4px rgb(245 184 61 / .35); animation: nudge 2.4s ease-in-out infinite; }
+.st-done[data-id] .bubble::after { background: #fff6dc; border-color: #c98a00; }
+.st-done[data-id] .nameplate { background: var(--you); }
+@keyframes nudge { 0%, 100% { box-shadow: 0 0 0 4px rgb(245 184 61 / .35); } 50% { box-shadow: 0 0 0 8px rgb(245 184 61 / .12); } }
+.bubble.note { text-align: left; font-weight: 600; padding: 7px 10px; }
+.note b { display: block; font-weight: 800; }
+.note ul { margin: 4px 0 0; padding-left: 16px; color: var(--ink-soft); }
+.note .next { display: block; margin-top: 5px; padding-top: 5px; border-top: 1.5px dashed var(--edge); font-weight: 800; color: #8a5a00; }
+.note .more { display: block; margin-top: 4px; font-size: 11px; color: var(--accent); font-weight: 700; }
 .bubble.conflict { border-color: var(--bad); }
 .plumbob { width: 16px; height: 26px; margin-bottom: 2px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000)); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); animation: bob 2.4s ease-in-out infinite, spin 4s linear infinite; filter: drop-shadow(0 0 4px var(--c)); }
 .st-working { --c: var(--ok); } .st-done { --c: var(--you); } .st-stuck { --c: var(--bad); } .st-idle { --c: var(--idle); }
@@ -81,11 +130,11 @@ button { font: inherit; cursor: pointer; }
 @keyframes flash { 50% { opacity: .2; } }
 .st-done .paper { animation: wave .9s ease-in-out infinite alternate; transform-origin: 92px 70px; }
 @keyframes wave { to { transform: rotate(-10deg); } }
-.zzz { position: absolute; top: 40%; right: 18%; font-family: var(--f-display); font-weight: 800; color: var(--ink-soft); font-size: 18px; animation: float 2.6s ease-in infinite; pointer-events: none; }
+.zzz { position: absolute; top: 76px; right: 18%; font-family: var(--f-display); font-weight: 800; color: var(--ink-soft); font-size: 18px; animation: float 2.6s ease-in infinite; pointer-events: none; }
 @keyframes float { from { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } to { transform: translate(14px, -28px); opacity: 0; } }
-.swirl { position: absolute; top: 46%; left: 50%; width: 28px; height: 28px; margin-left: -14px; border: 3px dotted var(--bad); border-radius: 50%; animation: spin2 1.2s linear infinite; pointer-events: none; }
+.swirl { position: absolute; top: 88px; left: 50%; width: 28px; height: 28px; margin-left: -14px; border: 3px dotted var(--bad); border-radius: 50%; animation: spin2 1.2s linear infinite; pointer-events: none; }
 @keyframes spin2 { to { transform: rotate(360deg); } }
-.mailcell { display: flex; align-items: flex-end; gap: 4px; justify-content: center; }
+.mailcell { display: flex; align-items: flex-end; gap: 4px; justify-content: center; min-height: 196px; }
 .mailbox { width: 62px; position: relative; }
 .mailbox .count { position: absolute; top: -12px; right: -8px; min-width: 22px; height: 22px; border-radius: 99px; background: var(--bad); color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; border: 2px solid var(--ink); }
 .cat { width: 70px; position: relative; }
@@ -94,13 +143,13 @@ button { font: inherit; cursor: pointer; }
 .cat.busy svg { animation: hop .3s ease-in-out infinite alternate; }
 @keyframes hop { to { transform: translateY(-4px); } }
 .dnd { position: absolute; right: 20px; top: 130px; background: var(--bad); color: #fff; font-weight: 800; font-size: 13px; padding: 3px 8px; border-radius: 6px; border: 2px solid var(--ink); transform: rotate(-4deg); }
-.empty-room { color: var(--ink-soft); font-weight: 700; align-self: end; text-align: center; padding: 20px 10px 40px; background: rgb(255 255 255 / .55); border-radius: 14px; }
+.empty-room { color: var(--ink-soft); font-weight: 700; margin-top: 60px; text-align: center; padding: 20px 10px 40px; background: rgb(255 255 255 / .55); border-radius: 14px; }
 
-.inspect { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; box-shadow: 0 4px 0 var(--ink); }
+.inspect { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 0 4px; }
 .inspect .who { font-family: var(--f-display); font-weight: 800; font-size: 20px; }
 .inspect .meta { color: var(--ink-soft); font-size: 14px; flex: 1; min-width: 200px; overflow-wrap: anywhere; }
 .inspect .meter { width: 160px; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
-.inspect.hint { box-shadow: none; border-style: dashed; border-color: var(--edge); color: var(--ink-soft); }
+.hint { border: 2px dashed var(--edge); border-radius: 16px; padding: 12px 14px; color: var(--ink-soft); }
 .bar { height: 8px; border-radius: 99px; background: #eee6d8; overflow: hidden; margin-top: 3px; }
 .bar i { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
 
@@ -147,10 +196,14 @@ details[open] summary { margin-bottom: 6px; }
   </header>
 
   <form class="cmdbar" id="cmdbar" autocomplete="off">
-    <button class="to" id="to" type="button" hidden title="Back to starting new helpers (Esc)"></button>
-    <input id="cmd" type="text" placeholder="Give a helper a job…   or  daycare approve <task>" aria-label="A job for a helper, or a daycare command" enterkeyhint="go">
-    <select id="repo" aria-label="Repo the helper works in" title="Repo the helper works in"></select>
-    <button class="btn go" type="submit">Go</button>
+    <label class="tag" for="cmd">✚ New session</label>
+    <input id="cmd" type="text" placeholder="What should it work on?" enterkeyhint="go">
+    <span class="in">in <button class="repo-btn" id="repo-btn" type="button" aria-haspopup="listbox" aria-expanded="false" title="The folder it works in. It gets its own copy (a git worktree), so it won't touch your files."></button></span>
+    <div class="picker" id="picker" hidden>
+      <input id="repo-q" type="text" placeholder="Search folders, or paste a path" aria-label="Search folders" autocomplete="off">
+      <div class="list" id="repo-list" role="listbox"></div>
+    </div>
+    <button class="btn go" type="submit">Start</button>
   </form>
 
   <div class="scene" id="scene">
@@ -161,13 +214,21 @@ details[open] summary { margin-bottom: 6px; }
     <div class="desks" id="desks"></div>
   </div>
 
-  <div class="inspect hint" id="inspect">Tap a helper or task to talk to it</div>
+  <div class="hint" id="hint">Tap a helper to reply to it</div>
 
   <section>
     <div class="desk-h"><h2>On your desk</h2><p id="desk-sub"></p></div>
     <div class="cards" id="cards"></div>
   </section>
 </div>
+<div class="dock" id="dock" hidden><div class="dock-in">
+  <div class="inspect" id="inspect"></div>
+  <form class="reply" id="reply" autocomplete="off">
+    <textarea id="reply-in" rows="1" aria-label="Reply" enterkeyhint="send"></textarea>
+    <button class="btn go" type="submit">Send</button>
+  </form>
+  <div class="reply-note" id="reply-note"></div>
+</div></div>
 <div class="toast" id="toast" hidden></div>
 <div class="dropzone" id="dropzone" hidden>Drop the screenshot</div>
 
@@ -299,12 +360,18 @@ function patch(box, items) {
 }
 
 const VISUAL = { working: "working", waiting: "done", stuck: "stuck", idle: "idle" };
+const TURN = `<span class="state turn">👉 Your turn</span>`;
+const WORKING = `<span class="state working"><span class="dots"><i></i><i></i><i></i></span>Working</span>`;
 function helperBubble(h, conflict) {
   if (conflict) return `both editing ${esc(conflict)}`;
-  if (h.state === "waiting") return `Your turn<small>${esc(h.doing || h.task)}</small>`;
+  if (h.state === "waiting" && h.summary) {
+    const s = h.summary;
+    return `${TURN}<b>${esc(s.tldr)}</b>${s.points.length ? `<ul>${s.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}${s.next ? `<span class="next">👉 ${esc(s.next)}</span>` : ""}<span class="more">Full reply: Go to it ↓</span>`;
+  }
+  if (h.state === "waiting") return `${TURN}${esc(h.doing || h.task)}`;
   if (h.state === "stuck") return `Help!<small>${esc(h.task)}</small>`;
   if (h.state === "idle") return "zzz";
-  return `${esc(h.task)}<small>${esc(h.doing || "working")}</small>`;
+  return `${WORKING}${esc(h.task)}<small>${esc(h.doing || "thinking")}</small>`;
 }
 
 function renderRoom() {
@@ -321,14 +388,15 @@ function renderRoom() {
   const cells = [];
   cells.push({ key: "mail", html: `<div class="mailcell"><div class="mailbox" title="Paste a screenshot (⌘V) to send me a message">${MAILBOX}${mail ? `<span class="count">${mail}</span>` : ""}</div>
     <div class="cat${v.reading ? " busy" : ""}">${v.reading ? `<div class="bubble">…</div>` : ""}${CAT(v.reading ? "read" : "sleep")}${v.reading ? "" : `<span class="zzz">z</span>`}</div></div>` });
-  cells.push({ key: "you", bubble: youBubble, html: `<div class="station st-${focus ? "idle" : youState}"><div class="bubble"></div><div class="plumbob"></div>
-    ${personSVG("you", youState === "stuck" ? "stuck" : "working", PAPERS(onDesk) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div></div>` });
+  cells.push({ key: "you", bubble: youBubble, html: `<div class="station st-${focus ? "idle" : youState}" data-you role="button" tabindex="0" title="Your desk"><div class="plumbob"></div>
+    ${personSVG("you", youState === "stuck" ? "stuck" : "working", PAPERS(onDesk) + (focus ? HEADPHONES : ""))}<div class="nameplate">You</div><div class="bubble"></div></div>` });
   for (const h of v.helpers) {
     const vis = VISUAL[h.state];
     cells.push({ key: `h${h.id}`, bubble: helperBubble(h, conflictFile[h.id]), html: `<div class="station st-${vis}${sel === h.id ? " sel" : ""}" data-id="${h.id}" role="button" tabindex="0" aria-label="${esc(h.name)}: ${esc(h.state)}">
-      <div class="bubble${conflictFile[h.id] ? " conflict" : ""}"></div><div class="plumbob"></div>
+      <div class="plumbob"></div>
       ${personSVG(h.look in LOOKS ? h.look : "claude", vis, vis === "working" ? MUG : "")}
       <div class="nameplate">${esc(h.name)}</div>
+      <div class="bubble${conflictFile[h.id] ? " conflict" : ""}${h.state === "waiting" && h.summary && !conflictFile[h.id] ? " note" : ""}"></div>
       ${vis === "idle" ? `<span class="zzz">z</span>` : ""}${vis === "stuck" ? `<span class="swirl"></span>` : ""}</div>` });
   }
   if (!v.helpers.length) cells.push({ key: "empty", html: `<div class="empty-room">No helpers yet.<br><code>daycare run "…"</code></div>` });
@@ -346,19 +414,19 @@ function cardHTML(c) {
   const det = (body) => `<details data-key="${esc(c.key)}"${openDetails.has(c.key) ? " open" : ""}><summary>Details</summary><div class="checks">${body}</div></details>`;
   let inner = "";
   if (c.kind === "review") inner = `${c.changes ? `<p>${esc(c.changes)}</p>` : ""}${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
-    <div class="row"><button class="btn small go" data-a="approve">Looks good</button></div>`;
-  if (c.kind === "step") inner = `<p>${esc(c.sub)}</p><div class="row"><button class="btn small go" data-a="approve">Done</button></div>`;
+    <div class="row"><button class="btn small go" data-a="approve">Looks good</button><button class="btn small ghost" data-a="discard" title="Throw this task away">Discard</button></div>`;
+  if (c.kind === "step") inner = `<p>Your step: ${esc(c.sub)}</p><div class="row"><button class="btn small go" data-a="approve">Done</button><button class="btn small ghost" data-a="discard" title="Throw this task away">Discard</button></div>`;
   if (c.kind === "test") {
     const all = c.checks.every((x) => x.d);
     inner = `<p>${esc(c.sub)}</p><ul class="checks">${c.checks.map((x, i) => `<li><label><input type="checkbox" id="${esc(c.key)}-k${i}" data-a="check" data-i="${i}"${x.d ? " checked" : ""}><span>${esc(x.t)}</span></label></li>`).join("")}</ul>
-      ${all ? `<div class="row"><button class="btn small go" data-a="approve">Done</button></div>` : ""}`;
+      <div class="row">${all ? `<button class="btn small go" data-a="approve">Done</button>` : ""}<button class="btn small ghost" data-a="discard" title="Throw this task away">Discard</button></div>`;
   }
   if (c.kind === "msg" && c.failed) inner = `<p>${esc(c.sub)}</p><div class="row"><button class="btn small ghost" data-a="dismiss">Dismiss</button></div>`;
   else if (c.kind === "msg") inner = `<p>${esc(c.sub)}</p>${det(`<blockquote class="quote">${esc(c.quote)}</blockquote>${(c.findings || []).map((f) => `<div class="found"><span>✓ ${esc(f.claim)}</span><code>$ ${esc(f.command)} → ${esc(f.quote)}</code></div>`).join("")}`)}
       <textarea id="draft-${esc(c.key)}" aria-label="Reply">${esc(drafts[c.key] ?? c.draft)}</textarea>
       <div class="row"><button class="btn small go" data-a="reply">Copy reply</button><button class="btn small ghost" data-a="dismiss">Dismiss</button></div>`;
   if (c.kind === "stuck") inner = `<p>${esc(c.sub)}</p>${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
-    <div class="row"><button class="btn small go" data-a="retry">Retry</button><button class="btn small ghost" data-a="resolve">It's done</button></div>`;
+    <div class="row"><button class="btn small go" data-a="retry">Retry</button><button class="btn small ghost" data-a="resolve" title="The work is finished: go on to the next step">It's done</button><button class="btn small ghost" data-a="discard" title="Throw this task away">Discard</button></div>`;
   if (c.kind === "done") inner = `${c.changes ? `<p>${esc(c.changes)}</p>` : ""}${det(`${c.result ? `<p>${esc(c.result)}</p>` : ""}${cmdRows(c.commands)}`)}
     <div class="row"><button class="btn small go" data-a="review">✓</button></div>`;
   return `<article class="card${p0 ? " urgent" : ""}${c.tell ? " tellable" : ""}${selCard === c.key ? " sel" : ""}" data-key="${esc(c.key)}"><span class="kind ${kc}">${kl}</span><h3>${esc(c.title)}</h3>${inner}</article>`;
@@ -366,42 +434,100 @@ function cardHTML(c) {
 
 function renderCards() {
   // Don't redraw while you're typing in a draft.
-  if (document.activeElement && document.activeElement.matches("textarea")) return;
+  if (document.activeElement && document.activeElement.matches("textarea[id^=draft-]")) return;
   patch($("#cards"), V.cards.length ? V.cards.map((c) => ({ key: c.key, html: cardHTML(c) })) : [{ key: "empty", html: `<div class="empty">All clear ✨</div>` }]);
   $("#desk-sub").textContent = `${V.stats.doneToday} done today`;
 }
 
 function renderHeader() {
   const s = V.stats;
-  $("#summary").textContent = `${s.working}/${s.helpers} working · $${s.spent.toFixed(2)}`;
+  const turn = V.helpers.filter((h) => h.state === "waiting").length;
+  $("#summary").textContent = `${turn ? `👉 ${turn} your turn · ` : ""}${s.working} working · $${s.spent.toFixed(2)}`;
   const b = $("#b-focus"), on = !!V.focus.until;
   b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "End focus" : "Focus";
 }
 
+// What the dock says about who you picked.
 function renderInspect() {
-  const el = $("#inspect"), h = V.helpers.find((x) => x.id === sel);
-  if (!h) { el.className = "inspect hint"; el.textContent = "Tap a helper or task to talk to it"; return; }
-  el.className = "inspect";
+  const el = $("#inspect"), h = V.helpers.find((x) => x.id === sel), c = !h && V.cards.find((x) => x.key === selCard);
+  const close = `<button class="close-x" type="button" data-unselect title="Close (Esc)" aria-label="Close">×</button>`;
+  if (c) { el.innerHTML = `<span class="who">${esc(c.title)}</span><span class="meta">${esc(c.sub || "")}</span>${close}`; return; }
+  if (!h) { el.innerHTML = ""; return; }
   el.innerHTML = `<span class="who">${esc(h.name)}</span><span class="meta">${esc(h.task)}${h.doing ? ` · ${esc(h.doing)}` : ""} · ${ago(h.since)}${h.files.length ? ` · 🔒 ${h.files.map(esc).join(", ")}` : ""}</span>
     ${h.budget ? `<div class="meter">⚡ $${(h.budget - (h.spent || 0)).toFixed(2)}<div class="bar"><i style="width:${Math.max(0, 100 - (h.spent || 0) / h.budget * 100)}%"></i></div></div>` : ""}
-    ${h.queued ? `<span class="meta">📨 Gets your message when this run ends</span>` : ""}
-    <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small go" data-a="goto">Go to it</button><button class="btn small ghost" data-a="hide">Hide</button>`}${h.kind === "dispatch" && h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>`;
+    <div class="row">${h.kind === "dispatch" ? `<button class="btn small ghost" data-a="kill">Stop</button>` : `<button class="btn small go" data-a="goto">Go to it</button><button class="btn small ghost" data-a="hide">Hide</button>`}${h.kind === "dispatch" && h.resume ? `<button class="btn small ghost" data-copy="${esc(h.resume)}">Resume</button>` : ""}</div>${close}`;
 }
 
-// The repo picker: repos you've worked in lately. Keeps your pick across updates and visits.
+// The folder picker. Recent folders first, then every git repo in your repo folders; type to
+// search, or paste a path. Naming a repo in your task picks it for you (✨) until you pick yourself.
+const home = (p) => p.split("/").slice(0, 3).join("/"); // /Users/you
+const short = (p) => p.replace(home(p), "~");
+const base = (p) => p.replace(/\/+$/, "").split("/").pop();
 let repoPick = (() => { try { return localStorage.getItem("daycare-repo") || ""; } catch { return ""; } })();
-let repoList = "";
+let autoPick = null; // set while your task text names a repo
+const chosen = () => autoPick || repoPick;
 function renderRepos() {
-  const repos = V.repos || [];
-  if (repos.join("\n") === repoList) return;
-  repoList = repos.join("\n");
-  const el = $("#repo");
-  if (!repos.length) { el.innerHTML = `<option value="">No repos yet</option>`; el.disabled = true; return; }
-  el.disabled = false;
-  if (!repos.includes(repoPick)) repoPick = repos[0];
-  el.innerHTML = repos.map((r) => `<option value="${esc(r)}" title="${esc(r)}"${r === repoPick ? " selected" : ""}>${esc(r.split("/").pop())}</option>`).join("");
+  if (!repoPick) repoPick = (V.repos || [])[0] || (V.allRepos || [])[0] || "";
+  const b = $("#repo-btn"), p = chosen();
+  b.textContent = p ? `${autoPick ? "✨ " : ""}${base(p)} ▾` : "pick a folder ▾";
+  b.classList.toggle("auto", !!autoPick);
+  b.title = p ? `${short(p)}${autoPick ? " (your task mentions it)" : ""}. It gets its own copy (a git worktree), so it won't touch your files.` : "";
 }
-$("#repo").addEventListener("change", (e) => { repoPick = e.target.value; try { localStorage.setItem("daycare-repo", repoPick); } catch {} });
+function pickFrom(text) {
+  const t = ` ${text.toLowerCase()} `;
+  let best = null;
+  for (const r of new Set([...(V.repos || []), ...(V.allRepos || [])])) {
+    const n = base(r).toLowerCase();
+    if (n.length < 3) continue;
+    const i = t.indexOf(n);
+    if (i > 0 && !/[\w-]/.test(t[i - 1]) && !/[\w-]/.test(t[i + n.length]) && (!best || n.length > base(best).length)) best = r;
+  }
+  return best;
+}
+$("#cmd").addEventListener("input", (e) => {
+  const m = pickFrom(e.target.value);
+  const next = m && m !== repoPick ? m : null;
+  if (next !== autoPick) { autoPick = next; renderRepos(); }
+});
+
+let opts = [], active = 0;
+function listRepos() {
+  const q = $("#repo-q").value.trim(), ql = q.toLowerCase();
+  const recent = V.repos || [], rest = (V.allRepos || []).filter((r) => !recent.includes(r));
+  const match = (r) => !ql || base(r).toLowerCase().includes(ql) || short(r).toLowerCase().includes(ql);
+  const groups = [["Recent", recent.filter(match)], [ql ? "Other folders" : "All repos", rest.filter(match)]];
+  opts = [];
+  let html = "";
+  if (/^[~\/]/.test(q)) { opts.push(q); html += `<button class="opt" type="button" role="option" data-i="0"><b>Use this folder</b><small>${esc(q)}</small></button>`; }
+  for (const [title, list] of groups) {
+    if (!list.length) continue;
+    html += `<h4>${title}</h4>` + list.map((r) => { opts.push(r); return `<button class="opt" type="button" role="option" data-i="${opts.length - 1}"><b>${esc(base(r))}</b><small>${esc(short(r))}</small></button>`; }).join("");
+  }
+  $("#repo-list").innerHTML = html || `<div class="none">No folder matches. Paste a full path to use any folder.</div>`;
+  active = Math.min(active, Math.max(0, opts.length - 1));
+  mark();
+}
+function mark() { document.querySelectorAll("#repo-list .opt").forEach((o) => o.classList.toggle("on", Number(o.dataset.i) === active)); document.querySelector("#repo-list .opt.on")?.scrollIntoView({ block: "nearest" }); }
+function openPicker(open) {
+  $("#picker").hidden = !open; $("#repo-btn").setAttribute("aria-expanded", String(open));
+  if (open) { $("#repo-q").value = ""; active = 0; listRepos(); $("#repo-q").focus(); }
+}
+function choose(p) {
+  p = p.trim().replace(/\/+$/, "");
+  if (!p) return;
+  repoPick = p; autoPick = null;
+  try { localStorage.setItem("daycare-repo", repoPick); } catch {}
+  openPicker(false); renderRepos(); $("#cmd").focus();
+}
+$("#repo-btn").addEventListener("click", () => openPicker($("#picker").hidden));
+$("#repo-q").addEventListener("input", () => { active = 0; listRepos(); });
+$("#repo-q").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); active = Math.max(0, Math.min(opts.length - 1, active + (e.key === "ArrowDown" ? 1 : -1))); mark(); }
+  else if (e.key === "Enter") { e.preventDefault(); if (opts[active]) choose(opts[active]); }
+  else if (e.key === "Escape") { e.stopPropagation(); openPicker(false); $("#repo-btn").focus(); }
+});
+$("#repo-list").addEventListener("click", (e) => { const o = e.target.closest(".opt"); if (o) choose(opts[Number(o.dataset.i)]); });
+document.addEventListener("click", (e) => { if (!$("#picker").hidden && !e.target.closest(".picker, #repo-btn")) openPicker(false); }, true);
 
 const sent = []; let hi = 0;
 $("#cmdbar").addEventListener("submit", async (e) => {
@@ -410,9 +536,8 @@ $("#cmdbar").addEventListener("submit", async (e) => {
   if (!text) return;
   input.disabled = true;
   try {
-    const t = target();
-    const j = t ? await act({ action: "tell", item: t, text }) : await api("/api/cmd", { text, repo: $("#repo").value || undefined });
-    if (j.ok) { sent.push(text); hi = sent.length; input.value = ""; }
+    const j = await api("/api/cmd", { text, repo: chosen() || undefined });
+    if (j.ok) { sent.push(text); hi = sent.length; input.value = ""; autoPick = null; renderRepos(); }
   } finally { input.disabled = false; input.focus(); }
 });
 $("#cmd").addEventListener("keydown", (e) => {
@@ -423,21 +548,48 @@ $("#cmd").addEventListener("keydown", (e) => {
   e.target.value = sent[hi] ?? "";
 });
 
-// Who the box talks to: the helper or task card you picked, if it can take a follow-up.
-function target() {
-  if (sel) { const h = V.helpers.find((x) => x.id === sel); if (h && h.tell) return h.item; }
-  if (selCard) { const c = V.cards.find((x) => x.key === selCard); if (c && c.tell) return c.item; }
-  return sel || selCard ? null : selItem;
+// The reply box lives in the dock, outside everything that redraws, so what you type is safe.
+const reply = $("#reply"), replyIn = $("#reply-in");
+
+// Who you picked, and how a reply reaches it.
+function replyTo() {
+  if (sel) {
+    const h = V.helpers.find((x) => x.id === sel);
+    if (!h) return null;
+    if (h.kind === "dispatch") return h.tell
+      ? { item: h.item, hint: `Message ${h.item}…`, note: h.queued ? "📨 It gets your message when this run ends." : "Continues the same conversation.", send: (text) => ({ action: "tell", item: h.item, text }) }
+      : { item: h.item, hint: "This helper can't take messages" };
+    if (h.state === "waiting") return { hint: `Reply to ${h.name}…`, note: "Typed into its terminal, as one line.", send: (text) => ({ action: "type", worker: h.id, text }) };
+    return { hint: h.state === "working" ? "Busy. You can reply on its turn" : "You can reply on its turn" };
+  }
+  if (selCard) {
+    const c = V.cards.find((x) => x.key === selCard);
+    if (c && c.tell) return { item: c.item, hint: `Message ${c.item}…`, note: "Continues the same conversation.", send: (text) => ({ action: "tell", item: c.item, text }) };
+    if (c) return { hint: "This one can't take messages" };
+  }
+  return null;
 }
-function renderBox() {
-  const t = target(), to = $("#to"), input = $("#cmd");
-  if (t) selItem = t;
-  to.hidden = !t; $("#repo").hidden = !!t;
-  if (t) { to.textContent = `→ ${t}`; input.placeholder = `Message ${t}…`; }
-  else input.placeholder = "Give a helper a job…   or  daycare approve <task>";
+function grow() { replyIn.style.height = "auto"; replyIn.style.height = `${replyIn.scrollHeight + 4}px`; }
+function placeReply(focus) {
+  const r = replyTo();
+  $("#dock").hidden = !r; $("#hint").hidden = !!r; document.body.classList.toggle("docked", !!r);
+  if (!r) return;
+  if (r.item) selItem = r.item;
+  replyIn.placeholder = r.hint; replyIn.disabled = !r.send; reply.querySelector("button").disabled = !r.send;
+  $("#reply-note").innerHTML = r.send ? `<kbd>Enter</kbd> sends · <kbd>Shift+Enter</kbd> new line · ${esc(r.note)}` : "";
+  if (focus && r.send) replyIn.focus();
 }
+replyIn.addEventListener("input", grow);
+replyIn.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); reply.requestSubmit(); } });
+reply.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = replyTo(), text = replyIn.value.trim();
+  if (!r || !r.send || !text) return;
+  replyIn.disabled = true;
+  try { const j = await act(r.send(text)); if (j.ok) { replyIn.value = ""; grow(); } }
+  finally { replyIn.disabled = false; replyIn.focus(); }
+});
 function unselect() { sel = null; selCard = null; selItem = null; render(); }
-$("#to").addEventListener("click", () => { unselect(); $("#cmd").focus(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (sel || selCard)) unselect(); });
 
 // A task moves between the desk (a card) and the room (its helper at work). Keep talking to it.
@@ -451,7 +603,10 @@ function follow() {
   if (h) sel = h.id; else if (c) selCard = c.key;
 }
 
-function render() { if (!V) return; follow(); renderRepos(); renderBox(); renderHeader(); renderRoom(); renderCards(); renderInspect(); }
+function render() {
+  if (!V) return;
+  follow(); renderRepos(); renderHeader(); renderRoom(); renderCards(); renderInspect(); placeReply(false);
+}
 
 /* Live updates */
 function connect() {
@@ -464,13 +619,15 @@ function connect() {
 document.addEventListener("click", async (e) => {
   const cp = e.target.closest("[data-copy]");
   if (cp) { copy(cp.dataset.copy).then(() => toast("Copied"), () => toast("Couldn't copy. Select the text instead.", true)); return; }
+  if (e.target.closest("[data-unselect]")) { unselect(); return; }
+  if (e.target.closest(".station[data-you]")) { document.querySelector(".desk-h").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const st = e.target.closest(".station[data-id]");
-  if (st) { sel = sel === Number(st.dataset.id) ? null : Number(st.dataset.id); selCard = null; selItem = null; render(); if (target()) $("#cmd").focus(); return; }
+  if (st) { sel = sel === Number(st.dataset.id) ? null : Number(st.dataset.id); selCard = null; selItem = null; render(); placeReply(true); return; }
   const b = e.target.closest("[data-a]");
   // A task card (not its buttons, links or fields): talk to its helper.
   const pick = !b && e.target.closest(".card.tellable");
   if (pick && !e.target.closest("details, textarea, input, a, button")) {
-    selCard = selCard === pick.dataset.key ? null : pick.dataset.key; sel = null; selItem = null; render(); if (target()) $("#cmd").focus(); return;
+    selCard = selCard === pick.dataset.key ? null : pick.dataset.key; sel = null; selItem = null; render(); placeReply(true); return;
   }
   // Clicking empty floor goes back to starting new helpers.
   if (!b && e.target.closest("#scene") && (sel || selCard)) { unselect(); return; }
@@ -485,7 +642,10 @@ document.addEventListener("click", async (e) => {
     }
     delete drafts[c.key];
     await act({ action: b.dataset.a, msg: c.msg });
-  } else await act({ action: b.dataset.a, item: c.item });
+  } else {
+    if (b.dataset.a === "discard" && !confirm(`Throw away ${c.item}?`)) return;
+    await act({ action: b.dataset.a, item: c.item });
+  }
 });
 document.addEventListener("change", (e) => {
   if (!e.target.matches("[data-a=check]")) return;

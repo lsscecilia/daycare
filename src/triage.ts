@@ -43,7 +43,7 @@ function jsonFrom(text: string): any {
 }
 
 // Asks for JSON; if the reply doesn't parse, asks once more, saying what went wrong.
-async function askJson(provider: ReturnType<typeof loadProvider>, prompt: string, cwd: string, env: Record<string, string>): Promise<any> {
+export async function askJson(provider: ReturnType<typeof loadProvider>, prompt: string, cwd: string, env: Record<string, string>): Promise<any> {
   let last = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     const r = await call(provider.ask, attempt ? `${prompt}\n\nYour previous reply wasn't valid JSON. Reply with ONLY the JSON object, with every string properly escaped.` : prompt, cwd, {}, env);
