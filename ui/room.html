@@ -460,8 +460,7 @@ function renderInspect() {
 
 // The folder picker. Recent folders first, then every git repo in your repo folders; type to
 // search, or paste a path. Naming a repo in your task picks it for you (✨) until you pick yourself.
-const home = (p) => p.split("/").slice(0, 3).join("/"); // /Users/you
-const short = (p) => p.replace(home(p), "~");
+const short = (p) => (V && V.home && (p === V.home || p.startsWith(V.home + "/")) ? "~" + p.slice(V.home.length) : p);
 const base = (p) => p.replace(/\/+$/, "").split("/").pop();
 let repoPick = (() => { try { return localStorage.getItem("daycare-repo") || ""; } catch { return ""; } })();
 let autoPick = null; // set while your task text names a repo

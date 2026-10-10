@@ -1,6 +1,6 @@
 // "Go to it": brings a Claude session's terminal to the front, so you can reply there.
 // "Type to it": types your reply into that terminal tab, as if you'd typed it yourself.
-import type { Worker } from "./items";
+import { getWorker, type Worker } from "./items";
 import { alive, sh } from "./util";
 
 // Terminal and iTerm can select the exact tab by its tty. The tty comes in as an argument,
@@ -120,7 +120,21 @@ export function typeInto(w: Worker, text: string): string {
   const script = TYPE[name];
   if (!script) throw new Error(`Daycare can type into Terminal and iTerm, not ${name || "this app"}. Use Go to it.`);
   const r = sh(["osascript", "-e", script, `/dev/${tty}`, said]);
-  if (r.out === "ok") return "Sent.";
+  if (r.out === "ok") {
+    // Long text arrives so fast that Claude Code takes it as a paste, and the Return that
+    // follows becomes part of the paste instead of sending it. A Return sent while the paste
+    // is still settling is swallowed too. So: while the turn hasn't started, wait a second
+    // and press Return again, a few times. Only while it hasn't: once Claude is working, a
+    // stray Return could answer one of its questions.
+    for (let i = 0; i < 3; i++) {
+      Bun.sleepSync(1000);
+      if (getWorker(w.id)?.status !== "waiting") return "Sent.";
+      sh(["osascript", "-e", script, `/dev/${tty}`, "\r"]);
+    }
+    Bun.sleepSync(1000);
+    if (getWorker(w.id)?.status === "waiting") throw new Error("Typed it, but it didn't send. Press Return in its terminal (Go to it).");
+    return "Sent.";
+  }
   if (/-1743|not allowed/i.test(r.err)) throw new Error(`Allow Daycare to control ${name}: System Settings → Privacy & Security → Automation.`);
   throw new Error("Couldn't find that terminal tab. Use Go to it.");
 }

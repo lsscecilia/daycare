@@ -29,6 +29,7 @@ export type View = {
   cards: Card[]; reading: number; stats: { working: number; helpers: number; spent: number; doneToday: number };
   repos: string[]; // where you've worked lately, newest first: the room's command box offers these
   allRepos: string[]; // every git repo in your repo folders, for the folder picker's search
+  home: string; // shown as ~ in paths
 };
 
 const LOOKS = ["claude2", "cursor", "claude"];
@@ -134,6 +135,7 @@ export function view(doReconcile = true): View {
     stats: { working: helpers.filter((h) => h.state === "working").length, helpers: helpers.length, spent, doneToday },
     repos: recentRepos(),
     allRepos: foundRepos(),
+    home: homedir(),
   };
 }
 
